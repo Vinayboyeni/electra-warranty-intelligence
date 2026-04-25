@@ -77,7 +77,23 @@ public without sharing class ComposeRepairGuidance {
             }
             String text = result.generations[0].text;
             if (String.isBlank(text)) return null;
-            return stripCodeFences(text.trim());
+            text = stripCodeFences(text.trim());
+
+            // Template-binding sanity check: if the response says fields are
+            // missing/empty but the claim actually has them, the template
+            // didn't resolve our Map input. Fall back to rule-based guidance.
+            String lower = text.toLowerCase();
+            Boolean saysEmpty = lower.contains('missing')
+                || lower.contains('not provided')
+                || lower.contains('no information')
+                || lower.contains('please provide');
+            Boolean fieldsPresent = String.isNotBlank(c.PartCategory__c)
+                && String.isNotBlank(c.Symptom__c);
+            if (saysEmpty && fieldsPresent) {
+                System.debug('ComposeRepairGuidance template reported missing fields incorrectly. Falling back.');
+                return null;
+            }
+            return text;
         } catch (Exception e) {
             System.debug('ComposeRepairGuidance template call failed: ' + e.getMessage());
             return null;

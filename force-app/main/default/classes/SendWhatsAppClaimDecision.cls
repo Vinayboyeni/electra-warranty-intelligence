@@ -115,6 +115,19 @@ public with sharing class SendWhatsAppClaimDecision {
 
     private static Id findActiveSession(String dealerPhone) {
         if (String.isBlank(dealerPhone)) return null;
+        // Sanity check: the dealer-side agent occasionally hallucinates the
+        // DealerWhatsAppNumber__c when its input isn't bound. Reject anything
+        // that doesn't look like a phone (digit-heavy, optional + prefix).
+        // A real phone has at least 8 digits; "Vin" / random text has none.
+        Integer digitCount = 0;
+        for (Integer i = 0; i < dealerPhone.length(); i++) {
+            String ch = dealerPhone.substring(i, i + 1);
+            if (ch >= '0' && ch <= '9') digitCount++;
+        }
+        if (digitCount < 8) {
+            System.debug('findActiveSession: rejecting non-phone value "' + dealerPhone + '"');
+            return null;
+        }
         try {
             List<MessagingEndUser> endUsers = [
                 SELECT Id FROM MessagingEndUser WHERE Name = :dealerPhone LIMIT 1

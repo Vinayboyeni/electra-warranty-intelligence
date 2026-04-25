@@ -112,6 +112,24 @@ public without sharing class InvokeClaimVerdictPrompt {
             if (!asMap.containsKey('recommendation') || !asMap.containsKey('confidence')) {
                 return null;
             }
+            // Template-binding sanity check: if the LLM claims required fields
+            // are missing but they ARE populated on the claim, the template's
+            // variable resolution failed (Map<->SObject Object-input mismatch).
+            // Fall back to rule-based so we don't surface a misleading verdict.
+            Object summaryObj = asMap.get('summary');
+            String summary = (summaryObj instanceof String) ? (String) summaryObj : '';
+            String summaryLower = summary.toLowerCase();
+            Boolean claimsMissing = summaryLower.contains('missing')
+                && (summaryLower.contains('details') || summaryLower.contains('information')
+                    || summaryLower.contains('part') || summaryLower.contains('symptom'));
+            Boolean fieldsActuallyPopulated = String.isNotBlank(c.PartCategory__c)
+                && String.isNotBlank(c.Symptom__c)
+                && c.EstimatedCost__c != null
+                && c.Odometer__c != null;
+            if (claimsMissing && fieldsActuallyPopulated) {
+                System.debug('Template reported missing fields but they ARE populated. Falling back to rule-based.');
+                return null;
+            }
             return asMap;
         } catch (Exception e) {
             System.debug('InvokeClaimVerdictPrompt: parse failed — ' + e.getMessage());

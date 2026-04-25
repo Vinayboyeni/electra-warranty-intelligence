@@ -142,6 +142,18 @@ public without sharing class ComposeDealerRejectionMessage {
                 text = text.replaceFirst('^```[a-zA-Z]*\\s*', '');
                 if (text.endsWith('```')) text = text.substring(0, text.length() - 3).trim();
             }
+            // Template-binding sanity check (same as in ComposeRepairGuidance).
+            String lower = text.toLowerCase();
+            Boolean saysEmpty = lower.contains('missing')
+                || lower.contains('not provided')
+                || lower.contains('please provide')
+                || lower.contains('no information');
+            Boolean fieldsPresent = String.isNotBlank(c.PartCategory__c)
+                && String.isNotBlank(c.Symptom__c);
+            if (saysEmpty && fieldsPresent) {
+                System.debug('ComposeDealerRejectionMessage template reported missing fields incorrectly. Falling back.');
+                return null;
+            }
             return text.length() > 10 ? text : null;
         } catch (Exception e) {
             System.debug('ComposeDealerRejectionMessage template call failed: '
