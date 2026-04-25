@@ -79,7 +79,7 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 
 ### Dealer-side intake (ARIA — Agentforce Service Agent)
 - 📱 Conversational WhatsApp + Web Chat
-- 🌐 **Bilingual** auto-detection (English + Spanish)
+- 💬 Conversational, English-language
 - 🔍 Slot-filling for VIN, symptom, part, odometer, cost
 - 📷 Photo upload + Vision AI damage analysis
 - 🔁 Inline RFI handling (clarification requests flow back to ARIA)

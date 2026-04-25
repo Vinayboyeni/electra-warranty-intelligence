@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.0.0] — Hackathon Submission
 
 ### Added
-- **ARIA dealer-intake agent** with bilingual (English/Spanish) WhatsApp + Web Chat support
+- **ARIA dealer-intake agent** with WhatsApp + Web Chat support
 - **Warranty Approver Agent** — Slack-native, 4 decision paths (Approve/Reject/Clarify/Goodwill)
 - **Coverage Engine** — AssetWarranty lookup with Likely / Borderline / Not Covered verdicts
 - **Auto-routing** — sub-$500 + Likely + trusted dealer auto-approves; Not Covered auto-rejects

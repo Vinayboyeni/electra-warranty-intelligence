@@ -17,7 +17,7 @@ Electra Cars is an EV OEM with 300,000+ vehicles in service. Their dealer networ
 
 **Electra Warranty Intelligence** replaces the email pipeline with an end-to-end Agentforce + Automotive Cloud + Data Cloud system that:
 
-- **Lets dealers submit claims through ARIA**, a bilingual (English/Spanish) Agentforce service agent that walks them through intake on WhatsApp or web chat — extracting VIN, symptom, part category, odometer, and cost in 5-7 conversational turns. Photos and dealer-supplied diagnoses are accepted.
+- **Lets dealers submit claims through ARIA**, an Agentforce service agent that walks them through intake on WhatsApp or web chat — extracting VIN, symptom, part category, odometer, and cost in 5-7 conversational turns. Photos and dealer-supplied diagnoses are accepted.
 
 - **Auto-classifies every claim** the moment it's submitted. The Coverage Engine queries AssetWarranty for active coverage. A Prompt Builder template (`Claim_Risk_Verdict`, gpt-4o-mini) returns a structured JSON verdict — Approve / Reject / Needs Clarification — with confidence and rationale. A routing layer auto-approves low-cost, high-confidence, trusted-dealer claims (~40% of volume), auto-rejects clear non-coverage cases, and queues the rest for human review.
 
@@ -39,7 +39,7 @@ The system is engineered for graceful degradation. Every Prompt Template has a r
 
 ### Dealer-facing (ARIA — Agentforce Service Agent)
 - WhatsApp + Web Chat intake (Digital Engagement)
-- Bilingual (English/Spanish) auto-detection
+- English-language conversational intake
 - Conversational slot-filling: VIN, symptom, part category, odometer, cost, photos
 - Inline RFI handling (clarification requests from approver flow back to ARIA)
 - "Status" intent — dealer can ask about any open claim by number
@@ -133,7 +133,7 @@ Given more time we would extend the system in five directions:
 
 **5. Warranty-to-upgrade conversion (Lead/Opportunity).** When a Claim crosses a high-cost threshold on an aging vehicle, auto-create an Opportunity for trade-in consultation. Sales captures the customer at the moment they're most receptive — without the dealer having to escalate manually.
 
-Additional ergonomic improvements: a Lightning Web Component approver mobile view, expanded multilingual support beyond English/Spanish, and a goodwill auto-routing layer that uses customer tenure + lifetime value to pre-approve out-of-warranty exceptions under a configured ceiling.
+Additional ergonomic improvements: a Lightning Web Component approver mobile view, multilingual conversational intake (Spanish, French, German for global dealer networks), and a goodwill auto-routing layer that uses customer tenure + lifetime value to pre-approve out-of-warranty exceptions under a configured ceiling.
 
 ---
 
@@ -180,7 +180,7 @@ The repo includes:
 | Time | Scene | Narration |
 |---|---|---|
 | 0:00-0:25 | **Opening — the problem** Show inbox screenshot or text overlay: "Electra Cars: 1,000+ warranty claims/day, 3 approvers, email-based" | "Electra Cars receives over a thousand warranty prior-authorization requests every day. Three approvers handle the queue manually via email. Each claim takes 24 to 72 hours. Today I'll show you how we collapsed that to under 30 seconds for the majority of claims." |
-| 0:25-1:10 | **Dealer intake — ARIA on WhatsApp** Open WhatsApp / Agentforce preview. Walk through 5-turn conversation: dealer reports battery issue, ARIA asks for VIN, odometer, photo. | "A dealer opens WhatsApp. Our intake agent ARIA — built on Agentforce — walks them through a structured conversation. ARIA is bilingual, accepts photos, and submits to a Claim record on Automotive Cloud automatically. No more email." |
+| 0:25-1:10 | **Dealer intake — ARIA on WhatsApp** Open WhatsApp / Agentforce preview. Walk through 5-turn conversation: dealer reports battery issue, ARIA asks for VIN, odometer, photo. | "A dealer opens WhatsApp. Our intake agent ARIA — built on Agentforce — walks them through a structured conversation. ARIA accepts photos and submits to a Claim record on Automotive Cloud automatically. No more email." |
 | 1:10-1:40 | **Auto-approve path** Show pre-prepared low-cost claim that's auto-approved. Pull up the dealer's WhatsApp showing approval + PDF link. | "Watch what happens when ARIA submits this claim. It's a $180 brake replacement on a trusted dealer's vehicle. The Coverage Engine confirms warranty. Our Prompt Builder template returns a 95% confidence verdict. Routing logic auto-approves. The dealer receives a branded PDF authorization on WhatsApp 30 seconds later. Zero human touch." |
 | 1:40-2:30 | **Slack approver path — the differentiator** Switch to Slack. Show `<!here>` ping with the rich context card. Highlight: AI verdict, historical precedent, Data Cloud telemetry signal, dealer trust score. | "For higher-value claims, we route to the approver pod in Slack. Look at this card — every signal an approver needs in one glance: AI verdict, historical precedent — *of 12 similar claims, 9 were approved* — vehicle telemetry from Data Cloud showing 3 fault codes appeared a week before the claim, and the dealer trust score updated live by our Apex trigger. The approver doesn't dig through emails. They reply: `approve CL-00123, fault codes corroborate the dealer's diagnosis`. Done." |
 | 2:30-3:00 | **Post-approval automation** Show the dealer WhatsApp: approval confirmation + PDF link + AI-generated repair guidance bullets. | "The approval triggers a chain: branded PDF, persistent URL on the Claim record, dealer WhatsApp with the document, post-approval repair guidance generated by another Prompt Builder template — battery-specific tips for this claim — and finally a WhatsApp to the end customer with the same PDF. The customer doesn't have to call." |
