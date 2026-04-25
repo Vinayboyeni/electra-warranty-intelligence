@@ -46,3 +46,44 @@ $RECYCLE.BIN/
 **/__pycache__/
 **/.venv/
 **/venv/
+
+# Local IDE / tool settings (not part of submission)
+.claude/
+.husky/
+.vscode/
+.prettierignore
+.prettierrc
+eslint.config.js
+jest.config.js
+package.json
+package-lock.json
+
+# Working notes / scratch / debug artifacts
+scratch/
+agent-script-recipes/
+*_backup
+deploy_result.json
+desc.json
+claim_desc.json
+validation_*.json
+DATA_MODEL_MAPPING.md
+FUNCTIONAL_SPECIFICATION.md
+HACKATHON_*.md
+PROMPT_TEMPLATE_*.md
+TECHNICAL_SPECIFICATION.md
+clean-legacy-bundles.sh
+
+# Debug / one-off scripts
+scripts/apex/diagnose_*.apex
+scripts/apex/test_*.apex
+scripts/apex/list_*.apex
+scripts/apex/hello.apex
+scripts/apex/prep.apex
+scripts/apex/cleanup.apex
+scripts/apex/backfill_*.apex
+scripts/diagnose_*.apex
+scripts/compare_*.py
+scripts/create_metadata*.ps1
+scripts/add_lookups.ps1
+scripts/org_custom_fields.json
+scripts/soql/
