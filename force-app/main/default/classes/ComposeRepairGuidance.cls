@@ -51,8 +51,20 @@ public without sharing class ComposeRepairGuidance {
             inp.additionalConfig = addCfg;
             inp.isPreview = false;
 
-            // Object resource expects a Map<String, Object> keyed by field
-            // API names (probe-verified, not the SObject).
+            // Pre-render claim fields into a single text blob — Map<->Object
+            // resolution doesn't work reliably for nested {!$Input:Claim.X}
+            // references in the template body.
+            String contextBlob = 'Claim details:'
+                + '\n- Claim number: ' + (c.Name != null ? c.Name : 'N/A')
+                + '\n- Part category: ' + (c.PartCategory__c != null ? c.PartCategory__c : 'N/A')
+                + '\n- Reported symptom: ' + (c.Symptom__c != null ? c.Symptom__c : 'N/A')
+                + '\n- Technician diagnosis: ' + (c.Diagnosis__c != null ? c.Diagnosis__c : 'N/A')
+                + '\n- Odometer: ' + (c.Odometer__c != null ? String.valueOf(c.Odometer__c.intValue()) + ' miles' : 'N/A')
+                + '\n- Estimated cost: ' + (c.EstimatedCost__c != null ? '$' + c.EstimatedCost__c.setScale(2) : 'N/A');
+            ConnectApi.WrappedValue ctxWv = new ConnectApi.WrappedValue();
+            ctxWv.value = contextBlob;
+
+            // Keep the legacy Map alongside so older templates still resolve.
             Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'               => c.Id,
                 'Name'             => c.Name,
@@ -65,7 +77,8 @@ public without sharing class ComposeRepairGuidance {
             ConnectApi.WrappedValue wv = new ConnectApi.WrappedValue();
             wv.value = claimMap;
             inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
-                'Input:Claim' => wv
+                'Input:ClaimContext' => ctxWv,
+                'Input:Claim'        => wv
             };
 
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =

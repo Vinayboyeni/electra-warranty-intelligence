@@ -105,8 +105,21 @@ public without sharing class ComposeDealerRejectionMessage {
             inp.additionalConfig = addCfg;
             inp.isPreview = false;
 
-            // Bind the Claim record + reason / rationale strings as Flex inputs.
-            // Object resource expects Map<String, Object> by field API name.
+            // Pre-render claim context as a text blob (Map/Object resolution
+            // unreliable for nested {!$Input:Claim.X} references). Plus
+            // ReasonCode + AdjusterRationale as separate Text inputs so the
+            // template can interpolate them individually for empathy.
+            String contextBlob = 'Claim details:'
+                + '\n- Claim number: ' + (c.Name != null ? c.Name : 'N/A')
+                + '\n- Dealer: ' + (c.Account != null && c.Account.Name != null ? c.Account.Name : 'N/A')
+                + '\n- Part category: ' + (c.PartCategory__c != null ? c.PartCategory__c : 'N/A')
+                + '\n- Reported symptom: ' + (c.Symptom__c != null ? c.Symptom__c : 'N/A')
+                + '\n- Estimated cost: ' + (c.EstimatedCost__c != null ? '$' + c.EstimatedCost__c.setScale(2) : 'N/A')
+                + '\n- Coverage verdict: ' + (c.Eligibility__c != null ? c.Eligibility__c : 'N/A');
+            ConnectApi.WrappedValue ctxWv = new ConnectApi.WrappedValue();
+            ctxWv.value = contextBlob;
+
+            // Legacy Object input — kept so older templates still work.
             Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'                => c.Id,
                 'Name'              => c.Name,
@@ -123,6 +136,7 @@ public without sharing class ComposeDealerRejectionMessage {
             rationaleWv.value = String.isNotBlank(rationale) ? rationale : '';
 
             inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
+                'Input:ClaimContext'      => ctxWv,
                 'Input:Claim'             => claimWv,
                 'Input:ReasonCode'        => reasonWv,
                 'Input:AdjusterRationale' => rationaleWv

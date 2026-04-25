@@ -155,9 +155,19 @@ public without sharing class InvokeClaimVerdictPrompt {
             inp.additionalConfig = addCfg;
             inp.isPreview = false;
 
-            // The Prompt Builder runtime expects an Object input as a
-            // Map<String, Object> keyed by field API names — NOT the SObject
-            // itself or the record Id alone. Probe-verified.
+            // Pre-render the claim into a single text blob. Probe-verified
+            // that the template body's {!$Input:Claim.field__c} references
+            // do NOT resolve from a Map<String,Object> — they render empty,
+            // and the LLM sees a blank prompt. By sending one rendered Text
+            // input instead, the LLM gets the data verbatim and produces
+            // reliable JSON output.
+            String claimContext = renderClaimContext(c);
+            ConnectApi.WrappedValue contextWv = new ConnectApi.WrappedValue();
+            contextWv.value = claimContext;
+
+            // Also send the legacy Map<String,Object> so older templates
+            // (still using the Object input) keep their existing behavior
+            // until the user migrates them in Prompt Builder.
             Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'              => c.Id,
                 'Name'            => c.Name,
@@ -169,8 +179,10 @@ public without sharing class InvokeClaimVerdictPrompt {
             };
             ConnectApi.WrappedValue claimWv = new ConnectApi.WrappedValue();
             claimWv.value = claimMap;
+
             inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
-                'Input:Claim' => claimWv
+                'Input:ClaimContext' => contextWv,
+                'Input:Claim'        => claimWv
             };
 
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =
@@ -233,6 +245,25 @@ public without sharing class InvokeClaimVerdictPrompt {
         } catch (Exception e) {
             System.debug('InvokeClaimVerdictPrompt write-back failed: ' + e.getMessage());
         }
+    }
+
+    /**
+     * Renders the claim's relevant fields as a single Text blob that the
+     * Prompt Builder template can consume via a single {!$Input:ClaimContext}
+     * placeholder. Avoids the Map<->Object resolution problem entirely.
+     */
+    private static String renderClaimContext(Claim c) {
+        List<String> lines = new List<String>{ 'Claim details:' };
+        lines.add('- Claim number: ' + (c.Name != null ? c.Name : 'N/A'));
+        lines.add('- Part category: ' + (c.PartCategory__c != null ? c.PartCategory__c : 'N/A'));
+        lines.add('- Reported symptom: ' + (c.Symptom__c != null ? c.Symptom__c : 'N/A'));
+        lines.add('- Odometer: ' + (c.Odometer__c != null ? String.valueOf(c.Odometer__c.intValue()) + ' miles' : 'N/A'));
+        lines.add('- Estimated cost: ' + (c.EstimatedCost__c != null ? '$' + c.EstimatedCost__c.setScale(2) : 'N/A'));
+        lines.add('- Coverage engine verdict: ' + (c.Eligibility__c != null ? c.Eligibility__c : 'N/A'));
+        if (c.Account != null && c.Account.Name != null) {
+            lines.add('- Servicing dealer: ' + c.Account.Name);
+        }
+        return String.join(lines, '\n');
     }
 
     private static String stripCodeFences(String raw) {
