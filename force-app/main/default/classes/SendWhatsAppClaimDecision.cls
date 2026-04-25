@@ -30,14 +30,18 @@ public with sharing class SendWhatsAppClaimDecision {
     }
 
     public static void notify(Id claimId, String decision, String reasonCode, String rationale) {
-        notify(claimId, decision, reasonCode, rationale, null);
+        notify(claimId, decision, reasonCode, rationale, null, null);
     }
 
     public static void notify(Id claimId, String decision, String reasonCode, String rationale, String authorizationPdfUrl) {
+        notify(claimId, decision, reasonCode, rationale, authorizationPdfUrl, null);
+    }
+
+    public static void notify(Id claimId, String decision, String reasonCode, String rationale, String authorizationPdfUrl, Decimal approvedAmount) {
         if (claimId == null) return;
         try {
             List<Claim> claims = [
-                SELECT Id, Name, DealerWhatsAppNumber__c
+                SELECT Id, Name, DealerWhatsAppNumber__c, EstimatedCost__c, ApprovedAmount
                 FROM Claim WHERE Id = :claimId LIMIT 1
             ];
             if (claims.isEmpty()) return;
@@ -58,6 +62,22 @@ public with sharing class SendWhatsAppClaimDecision {
             }
             if (String.isBlank(body)) {
                 body = buildBody(c.Name, decision, rationale);
+            }
+
+            // For APPROVED with a partial-approval amount, surface the cap explicitly.
+            // Use the parameter when passed; otherwise fall back to the value persisted
+            // on the Claim (which may have been set by the approval Apex).
+            if (APPROVED.equalsIgnoreCase(decision)) {
+                Decimal cap = (approvedAmount != null && approvedAmount > 0)
+                    ? approvedAmount : c.ApprovedAmount;
+                Decimal estimated = c.EstimatedCost__c;
+                if (cap != null && estimated != null && cap < estimated) {
+                    body += '\n\n💰 *Approved amount:* $' + cap.setScale(2)
+                        + ' (capped from estimate of $' + estimated.setScale(2) + ')'
+                        + '\nReimbursement will not exceed this approved amount.';
+                } else if (cap != null) {
+                    body += '\n\n💰 *Approved amount:* $' + cap.setScale(2);
+                }
             }
 
             // For APPROVED, append the authorization PDF link if generated.

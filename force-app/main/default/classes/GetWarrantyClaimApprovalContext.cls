@@ -67,26 +67,28 @@ public without sharing class GetWarrantyClaimApprovalContext {
                         Account.Name, Account.DealerTrustScore__c,
                         Vehicle__c, Vehicle__r.Name,
                         Odometer__c, Symptom__c, Diagnosis__c, PartCategory__c,
-                        EstimatedCost__c, Eligibility__c, EligibilityRationale__c,
+                        EstimatedCost__c, ApprovedAmount,
+                        Eligibility__c, EligibilityRationale__c,
                         AI_Summary__c, AI_Recommendation__c, AI_Confidence__c,
                         AI_Image_Analysis__c, ApproverSlackRef__c,
                         ClarificationRequest__c, RequiresFollowUp__c,
                         DealerResponseSummary__c, MessagingSessionId__c,
                         SubmissionChannel__c, SLA_Due_Date__c, Priority__c,
-                        TelemetrySignal__c,
+                        TelemetrySignal__c, PhotoPublicUrl__c,
                         CreatedDate
                    FROM Claim WHERE Id = :input.claimId LIMIT 1]
                 : [SELECT Id, Name, Status,
                         Account.Name, Account.DealerTrustScore__c,
                         Vehicle__c, Vehicle__r.Name,
                         Odometer__c, Symptom__c, Diagnosis__c, PartCategory__c,
-                        EstimatedCost__c, Eligibility__c, EligibilityRationale__c,
+                        EstimatedCost__c, ApprovedAmount,
+                        Eligibility__c, EligibilityRationale__c,
                         AI_Summary__c, AI_Recommendation__c, AI_Confidence__c,
                         AI_Image_Analysis__c, ApproverSlackRef__c,
                         ClarificationRequest__c, RequiresFollowUp__c,
                         DealerResponseSummary__c, MessagingSessionId__c,
                         SubmissionChannel__c, SLA_Due_Date__c, Priority__c,
-                        TelemetrySignal__c,
+                        TelemetrySignal__c, PhotoPublicUrl__c,
                         CreatedDate
                    FROM Claim WHERE Name = :input.claimNumber LIMIT 1];
 
@@ -232,6 +234,9 @@ public without sharing class GetWarrantyClaimApprovalContext {
                 body += ':satellite_antenna: *Vehicle telemetry (Data Cloud):* ' + claim.TelemetrySignal__c + '\n';
             }
             if (r.aiImageAnalysis != null) body += '*Photo Analysis:* ' + r.aiImageAnalysis + '\n';
+            if (String.isNotBlank(claim.PhotoPublicUrl__c)) {
+                body += ':camera_with_flash: *View photo:* <' + claim.PhotoPublicUrl__c + '|click to open>\n';
+            }
             if (r.previousClaims != null) body += '---\n*Previous Claims:*\n' + r.previousClaims + '\n';
             if (r.clarificationRequest != null) body += '---\n*Pending Clarification:* ' + r.clarificationRequest + '\n';
 

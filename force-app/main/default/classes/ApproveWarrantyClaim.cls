@@ -8,6 +8,9 @@ public with sharing class ApproveWarrantyClaim {
 
         @InvocableVariable(label='Approver Slack Reference' description='Slack thread or message reference for the approval action.')
         public String approverSlackRef;
+
+        @InvocableVariable(label='Approved Amount' description='Optional. Specific dollar amount the approver is authorizing — pass when partial-approving below the dealer-estimated cost. When null or equal to the estimate, full estimated amount is approved.')
+        public Decimal approvedAmount;
     }
 
     public class Result {
@@ -36,7 +39,7 @@ public with sharing class ApproveWarrantyClaim {
 
         Set<Id> alreadyDecided = new Set<Id>();
         for (Claim claim : [
-            SELECT Id, Status, DecisionRationale__c
+            SELECT Id, Status, DecisionRationale__c, EstimatedCost__c, ApprovedAmount
             FROM Claim
             WHERE Id IN :inputMap.keySet()
         ]) {
@@ -62,6 +65,14 @@ public with sharing class ApproveWarrantyClaim {
             if (String.isNotBlank(request.approverSlackRef)) {
                 claim.ApproverSlackRef__c = request.approverSlackRef;
             }
+            // Partial-approval support: if the approver passed an explicit
+            // approvedAmount, use it. Otherwise default to the estimated
+            // cost so the dealer's authorization still has a hard ceiling.
+            if (request.approvedAmount != null && request.approvedAmount > 0) {
+                claim.ApprovedAmount = request.approvedAmount;
+            } else if (claim.EstimatedCost__c != null) {
+                claim.ApprovedAmount = claim.EstimatedCost__c;
+            }
             updates.add(claim);
         }
 
@@ -77,6 +88,7 @@ public with sharing class ApproveWarrantyClaim {
             for (Claim claim : updates) {
                 Input req = inputMap.get(claim.Id);
                 String rationale = (req != null) ? req.decisionRationale : null;
+                Decimal approvedAmt = (req != null) ? req.approvedAmount : null;
 
                 String pdfUrl = null;
                 try {
@@ -90,7 +102,8 @@ public with sharing class ApproveWarrantyClaim {
                     SendWhatsAppClaimDecision.APPROVED,
                     null,
                     rationale,
-                    pdfUrl
+                    pdfUrl,
+                    approvedAmt
                 );
 
                 // Also email the end customer (vehicle owner) with the PDF link.

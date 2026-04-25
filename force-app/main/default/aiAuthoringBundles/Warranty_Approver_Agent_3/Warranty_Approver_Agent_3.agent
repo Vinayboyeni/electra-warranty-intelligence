@@ -106,6 +106,9 @@ variables:
    clarification_question: mutable string
       description: "The specific question to send to the dealer via RFI. Captured via set_variable_clarification_question."
       visibility: "Internal"
+   approved_amount: mutable number
+      description: "Optional. Specific dollar amount the approver wants to authorize when partial-approving below the dealer-estimated cost. When null, the full estimated_cost is approved. Captured via set_variable_approved_amount BEFORE tool_ApproveWarrantyClaim."
+      visibility: "Internal"
    goodwill_intent_confirmed: mutable boolean = False
       description: "Deterministic gate that allows tool_SubmitGoodwillReview to fire. ONLY set True when the adjuster explicitly says 'goodwill' or agrees to route a Not-Covered claim to Goodwill. Prevents Goodwill from being auto-selected when Approve is gated."
       visibility: "Internal"
@@ -192,13 +195,15 @@ subagent ClaimReview:
          |     On yes → go to STEP 4D (the user has now explicitly opted into Goodwill). On no → return to STEP 4.
          | - If eligibility is "Likely" or "Borderline":
          |     ONE-SHOT path (preferred): if the adjuster's message contains both the verb "approve" AND any free-form text after it, treat the trailing text as the rationale and complete in a single turn.
+         |     PARTIAL-AMOUNT detection: if the adjuster's message includes a dollar figure DIFFERENT from estimated_cost (e.g., "approve at 1800", "cap at $1,200", "only approve 1500"), capture that figure as the approved amount.
          |     Turn A1 (only if rationale is missing) — Ask: "Got it. Please provide a one-sentence rationale for the approval (audit requirement)."
          |     Turn A2 (DECISIVE — all in one turn):
          |       1. Call {!@actions.set_variable_decision_rationale} with the rationale text.
-         |       2. Parse numeric value from estimated_cost (strip "$" and ","). If value > 2000, ask once: "This claim is {!@variables.estimated_cost}, above the $2,000 threshold. Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
-         |       3. Call {!@actions.tool_ApproveWarrantyClaim}.
-         |       4. IMMEDIATELY emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified."
-         |     Never end this turn silent — step 4 ALWAYS emits the message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
+         |       2. If a partial amount was detected, call {!@actions.set_variable_approved_amount} with that numeric value (no $, no commas). Skip this step if approving the full estimated cost.
+         |       3. Parse numeric value from estimated_cost (strip "$" and ","). Determine the EFFECTIVE amount = approved_amount if set, else estimated_cost. If the EFFECTIVE amount > 2000, ask once: "This claim will be approved at $X (above the $2,000 threshold). Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
+         |       4. Call {!@actions.tool_ApproveWarrantyClaim}.
+         |       5. IMMEDIATELY emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified." If a partial amount was set, append: " Approved at $X (capped from estimated $Y)."
+         |     Never end this turn silent — step 5 ALWAYS emits the message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
          |
          | STEP 4B — REJECT (deterministic, turn-by-turn — follow strictly)
          | Initiated when adjuster says "reject", "deny", "decline" AND reason_code is empty.
@@ -256,6 +261,7 @@ subagent ClaimReview:
             with decision_rationale = ...
             with reason_code = ...
             with clarification_question = ...
+            with approved_amount = ...
             with context_loaded = ...
          set_variable_decision_rationale: @utils.setVariables
             description: "Store the adjuster's FREE-FORM RATIONALE TEXT for approve/reject/goodwill. This is an audit-trail sentence, NOT a reason code. Critical: even if the adjuster's text literally matches a reason code name (e.g., they type 'Duplicate Claim' as their rationale), STORE IT AS-IS in decision_rationale. Reason code and rationale are different fields. Call BEFORE tool_ApproveWarrantyClaim, tool_RejectWarrantyClaim, or tool_SubmitGoodwillReview. Once called, immediately invoke the corresponding tool in the same turn."
@@ -266,6 +272,9 @@ subagent ClaimReview:
          set_variable_clarification_question: @utils.setVariables
             description: "Store the specific question to send to the dealer. Call BEFORE tool_RequestDealerClarification."
             with clarification_question = ...
+         set_variable_approved_amount: @utils.setVariables
+            description: "Store the dollar amount the approver wants to authorize, AS A NUMBER (no $, no commas). Use this ONLY when the approver asks to partial-approve below the dealer-estimated cost. Examples: 'approve at 1800' → store 1800; 'cap at $1,200' → store 1200; 'approve full amount' → do NOT call this (leave null). When null, tool_ApproveWarrantyClaim approves the full estimated cost. Call BEFORE tool_ApproveWarrantyClaim if a partial amount was requested."
+            with approved_amount = ...
          set_variable_goodwill_intent_confirmed: @utils.setVariables
             description: "Set True ONLY when the adjuster explicitly says 'goodwill' or 'escalate to goodwill' OR explicitly agrees to route a Not-Covered claim as Goodwill. Never set True implicitly. Deterministic gate for tool_SubmitGoodwillReview — without this True, Goodwill cannot fire even if rationale is set."
             with goodwill_intent_confirmed = ...
@@ -299,6 +308,7 @@ subagent ClaimReview:
             with claimId = @variables.claim_id
             with decisionRationale = @variables.decision_rationale
             with approverSlackRef = @variables.slack_reference
+            with approvedAmount = @variables.approved_amount
          tool_RejectWarrantyClaim: @actions.RejectWarrantyClaim
             available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.claim_status != "Approved" and @variables.claim_status != "Rejected" and @variables.reason_code is not None and @variables.decision_rationale is not None
             with claimId = @variables.claim_id
@@ -498,6 +508,11 @@ subagent ClaimReview:
             "approverSlackRef": string
                description: "Slack message reference for audit trail."
                label: "Approver Slack Ref"
+               is_required: False
+               is_user_input: False
+            "approvedAmount": number
+               description: "Optional. Specific dollar amount to authorize when partial-approving below the dealer-estimated cost. Pass as a plain number (no $ or commas). Leave null/empty to approve the full estimated cost."
+               label: "Approved Amount"
                is_required: False
                is_user_input: False
          outputs:
