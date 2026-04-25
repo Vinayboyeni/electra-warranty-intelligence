@@ -42,7 +42,18 @@ public without sharing class ComposeRepairGuidance {
 
     private static String tryPromptTemplate(Claim c) {
         try {
-            Map<String, Object> inputRecord = new Map<String, Object>{
+            ConnectApi.EinsteinPromptTemplateGenerationsInput inp =
+                new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+
+            ConnectApi.EinsteinLlmAdditionalConfigInput addCfg =
+                new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            addCfg.applicationName = 'PromptBuilderPreview';
+            inp.additionalConfig = addCfg;
+            inp.isPreview = false;
+
+            // Object resource expects a Map<String, Object> keyed by field
+            // API names (probe-verified, not the SObject).
+            Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'               => c.Id,
                 'Name'             => c.Name,
                 'PartCategory__c'  => c.PartCategory__c,
@@ -51,21 +62,22 @@ public without sharing class ComposeRepairGuidance {
                 'Odometer__c'      => c.Odometer__c,
                 'EstimatedCost__c' => c.EstimatedCost__c
             };
+            ConnectApi.WrappedValue wv = new ConnectApi.WrappedValue();
+            wv.value = claimMap;
+            inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
+                'Input:Claim' => wv
+            };
 
-            Invocable.Action a = Invocable.Action.createStandardAction(
-                'generativeAi:generatePromptTemplateResponse');
-            a.setInvocationParameter('promptTemplateDevName', TEMPLATE_DEV_NAME);
-            a.setInvocationParameter('inputRecord', inputRecord);
+            ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =
+                ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(
+                    TEMPLATE_DEV_NAME, inp);
 
-            List<Invocable.Action.Result> results = a.invoke();
-            if (results == null || results.isEmpty() || !results[0].isSuccess()) {
+            if (result == null || result.generations == null || result.generations.isEmpty()) {
                 return null;
             }
-            Object out = results[0].getOutputParameters().get('promptResponse');
-            if (out == null) return null;
-
-            String text = String.valueOf(out).trim();
-            return stripCodeFences(text);
+            String text = result.generations[0].text;
+            if (String.isBlank(text)) return null;
+            return stripCodeFences(text.trim());
         } catch (Exception e) {
             System.debug('ComposeRepairGuidance template call failed: ' + e.getMessage());
             return null;

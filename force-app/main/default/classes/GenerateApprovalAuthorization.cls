@@ -82,15 +82,9 @@ public without sharing class GenerateApprovalAuthorization {
             }
             if (chosenUrl == null) return null;
 
-            // Persist the URL on the Claim so approvers / dealers can recover it
-            // later without us having to regenerate the ContentDistribution.
-            // Wrapped in try/catch so a field-level hiccup never blocks the
-            // return path (caller still gets the URL for the WhatsApp message).
-            try {
-                update new Claim(Id = claimId, AuthorizationPdfUrl__c = chosenUrl);
-            } catch (Exception writebackErr) {
-                System.debug('AuthorizationPdfUrl writeback failed: ' + writebackErr.getMessage());
-            }
+            // The PDF is already attached to the Claim via ContentVersion + ContentDocumentLink.
+            // The URL is also delivered in the dealer WhatsApp body and persisted in the
+            // Chatter audit FeedItem on the Claim. No separate URL field needed.
             return chosenUrl;
 
         } catch (Exception e) {

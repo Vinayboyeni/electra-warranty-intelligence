@@ -63,7 +63,7 @@ public with sharing class SubmitGoodwillReview {
                     newClaim.AccountId      = resolvedDealerId;
                     newClaim.Name           = 'Goodwill Request: ' + i.vin;
                     newClaim.Status         = 'Submitted';
-                    newClaim.Authorization_Type__c = 'Goodwill';
+                    newClaim.Authorization_Type__c = 'Goodwill Exception';
                     newClaim.Priority__c    = 'High';
                     newClaim.Vehicle__c     = vehicles[0].AssetId;
                     newClaim.PartCategory__c = String.isNotBlank(i.partCategory) ? i.partCategory : 'General';
@@ -82,7 +82,7 @@ public with sharing class SubmitGoodwillReview {
 
                 // Update the claim to Goodwill type and escalate priority
                 Claim c = new Claim(Id = targetClaimId);
-                c.Authorization_Type__c = 'Goodwill';
+                c.Authorization_Type__c = 'Goodwill Exception';
                 c.Priority__c = 'High';
                 if (String.isNotBlank(i.goodwillReason)) {
                     c.DealerResponseSummary__c = i.goodwillReason;

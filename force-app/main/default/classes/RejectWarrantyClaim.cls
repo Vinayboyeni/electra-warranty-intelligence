@@ -37,6 +37,7 @@ public with sharing class RejectWarrantyClaim {
             return output;
         }
 
+        Set<Id> alreadyDecided = new Set<Id>();
         for (Claim claim : [
             SELECT Id, Status, DecisionRationale__c, ReasonCode__c
             FROM Claim
@@ -44,6 +45,13 @@ public with sharing class RejectWarrantyClaim {
         ]) {
             Input request = inputMap.get(claim.Id);
             if (request == null) {
+                continue;
+            }
+
+            // Defense-in-depth: skip if already decided. Prevents an Approved
+            // claim being silently flipped to Rejected by a downstream misfire.
+            if (claim.Status == 'Approved' || claim.Status == 'Rejected') {
+                alreadyDecided.add(claim.Id);
                 continue;
             }
 
@@ -85,8 +93,13 @@ public with sharing class RejectWarrantyClaim {
             Result result = new Result();
             result.claimId = request == null ? null : request.claimId;
             if (request != null && request.claimId != null) {
-                result.status = 'Success';
-                result.message = 'Claim rejected successfully. Dealer notified on WhatsApp.';
+                if (alreadyDecided.contains(request.claimId)) {
+                    result.status = 'Skipped';
+                    result.message = 'Claim is already decided (Approved or Rejected). No action taken.';
+                } else {
+                    result.status = 'Success';
+                    result.message = 'Claim rejected successfully. Dealer notified on WhatsApp.';
+                }
             } else {
                 result.status = 'Error';
                 result.message = 'Invalid claim input.';

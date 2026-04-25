@@ -24,7 +24,6 @@ public without sharing class NotifyCustomerOfApproval {
         try {
             List<Claim> claims = [
                 SELECT Id, Name, ApprovalDate__c, PartCategory__c,
-                       AuthorizationPdfUrl__c,
                        Vehicle__c, Vehicle__r.Name,
                        Account.Name
                 FROM Claim
@@ -34,10 +33,8 @@ public without sharing class NotifyCustomerOfApproval {
             if (claims.isEmpty()) return;
             Claim c = claims[0];
 
-            // Prefer the stored PDF URL; fall back to what the caller passed.
-            String pdfLink = String.isNotBlank(c.AuthorizationPdfUrl__c)
-                ? c.AuthorizationPdfUrl__c
-                : pdfUrl;
+            // Caller (ApproveWarrantyClaim) passes the freshly-minted PDF URL.
+            String pdfLink = pdfUrl;
 
             // Resolve customer Contact + phone via Vehicle → Asset chain.
             String customerName  = null;

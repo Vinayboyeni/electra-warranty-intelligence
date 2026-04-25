@@ -156,6 +156,54 @@
         <apexClass>ValidateRepairEstimate</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>ComposeDealerRejectionMessage</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ComposeRepairGuidance</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DealerTrustScoreService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DemoScenarioSeeder</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>GenerateApprovalAuthorization</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>GetPendingClaimsQueue</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>InvokeClaimVerdictPrompt</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>NotifyCustomerOfApproval</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>PostToSlackWebhook</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>RefreshTelemetrySignals</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>SendWhatsAppClaimDecision</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>WarrantyClaimFlowSupport</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <description>Complete permission set for the Warranty Agent user. Grants access to all objects, fields, Apex classes, flows, and agents required to run the Dealer Intake and Approver agents end-to-end.</description>
     <fieldPermissions>
         <editable>false</editable>
@@ -595,6 +643,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Claim.Symptom__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Claim.TelemetrySignal__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

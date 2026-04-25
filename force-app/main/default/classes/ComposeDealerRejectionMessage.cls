@@ -96,33 +96,48 @@ public without sharing class ComposeDealerRejectionMessage {
      */
     private static String tryPromptTemplate(Claim c, String reasonCode, String rationale) {
         try {
-            Map<String, Object> inputRecord = new Map<String, Object>{
+            ConnectApi.EinsteinPromptTemplateGenerationsInput inp =
+                new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+
+            ConnectApi.EinsteinLlmAdditionalConfigInput addCfg =
+                new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            addCfg.applicationName = 'PromptBuilderPreview';
+            inp.additionalConfig = addCfg;
+            inp.isPreview = false;
+
+            // Bind the Claim record + reason / rationale strings as Flex inputs.
+            // Object resource expects Map<String, Object> by field API name.
+            Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'                => c.Id,
                 'Name'              => c.Name,
                 'PartCategory__c'   => c.PartCategory__c,
                 'Symptom__c'        => c.Symptom__c,
                 'EstimatedCost__c'  => c.EstimatedCost__c,
-                'Eligibility__c'    => c.Eligibility__c,
-                'DealerName'        => c.Account != null ? c.Account.Name : '',
-                'ReasonCode'        => String.isNotBlank(reasonCode) ? reasonCode : '',
-                'AdjusterRationale' => String.isNotBlank(rationale) ? rationale : ''
+                'Eligibility__c'    => c.Eligibility__c
+            };
+            ConnectApi.WrappedValue claimWv = new ConnectApi.WrappedValue();
+            claimWv.value = claimMap;
+            ConnectApi.WrappedValue reasonWv = new ConnectApi.WrappedValue();
+            reasonWv.value = String.isNotBlank(reasonCode) ? reasonCode : '';
+            ConnectApi.WrappedValue rationaleWv = new ConnectApi.WrappedValue();
+            rationaleWv.value = String.isNotBlank(rationale) ? rationale : '';
+
+            inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
+                'Input:Claim'             => claimWv,
+                'Input:ReasonCode'        => reasonWv,
+                'Input:AdjusterRationale' => rationaleWv
             };
 
-            Invocable.Action a = Invocable.Action.createStandardAction(
-                'generativeAi:generatePromptTemplateResponse');
-            a.setInvocationParameter('promptTemplateDevName', TEMPLATE_DEV_NAME);
-            a.setInvocationParameter('inputRecord', inputRecord);
-            a.setInvocationParameter('reasonCode', reasonCode);
-            a.setInvocationParameter('adjusterRationale', rationale);
+            ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =
+                ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(
+                    TEMPLATE_DEV_NAME, inp);
 
-            List<Invocable.Action.Result> results = a.invoke();
-            if (results == null || results.isEmpty() || !results[0].isSuccess()) {
+            if (result == null || result.generations == null || result.generations.isEmpty()) {
                 return null;
             }
-            Object resp = results[0].getOutputParameters().get('promptResponse');
-            if (resp == null) return null;
-            String text = String.valueOf(resp).trim();
-            // Strip any accidental code fences the model might wrap around the reply
+            String text = result.generations[0].text;
+            if (String.isBlank(text)) return null;
+            text = text.trim();
             if (text.startsWith('```')) {
                 text = text.replaceFirst('^```[a-zA-Z]*\\s*', '');
                 if (text.endsWith('```')) text = text.substring(0, text.length() - 3).trim();

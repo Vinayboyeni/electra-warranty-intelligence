@@ -12,7 +12,7 @@ system:
 
       AUTHORITY:
       - You may approve claims up to $2,000 unilaterally based on AI recommendation.
-      - Claims above $2,000 REQUIRE explicit adjuster confirmation via set_variable_confirmed_above_threshold before executing.
+      - Claims above $2,000 REQUIRE explicit adjuster confirmation ("yes/no") in the same session before executing.
       - Auto-approved claims (Auto_Approved__c = true) do not need further action — inform the adjuster.
       - NEVER approve or reject a claim that is already Approved or Rejected (check claim_status first).
 
@@ -71,7 +71,7 @@ variables:
       description: "Coverage verdict: Likely, Borderline, or Not Covered."
       visibility: "Internal"
    estimated_cost: mutable string
-      description: "Dealer-estimated repair cost in USD (stored as string from Apex, e.g., '$890.00'). The $2000 threshold check is enforced via the confirmed_above_threshold boolean gate in reasoning, not a numeric comparison."
+      description: "Dealer-estimated repair cost in USD (stored as string from Apex, e.g., '$890.00'). For values above $2,000, the agent reasoning prompts the adjuster for explicit yes/no confirmation before tool_ApproveWarrantyClaim fires."
       visibility: "Internal"
    warranty_end_date: mutable string
       description: "Coverage expiration date for this vehicle."
@@ -106,8 +106,8 @@ variables:
    clarification_question: mutable string
       description: "The specific question to send to the dealer via RFI. Captured via set_variable_clarification_question."
       visibility: "Internal"
-   confirmed_above_threshold: mutable boolean = False
-      description: "Deterministic approval gate. For claims under $2,000 the agent sets this to True automatically after capturing the rationale. For claims $2,000 and above the agent MUST ask the adjuster 'Confirm approval? (yes/no)' and only set True on explicit yes. Blocks ApproveWarrantyClaim in all other cases."
+   goodwill_intent_confirmed: mutable boolean = False
+      description: "Deterministic gate that allows tool_SubmitGoodwillReview to fire. ONLY set True when the adjuster explicitly says 'goodwill' or agrees to route a Not-Covered claim to Goodwill. Prevents Goodwill from being auto-selected when Approve is gated."
       visibility: "Internal"
    context_loaded: mutable boolean = False
       description: "True once GetWarrantyClaimApprovalContext has been called. Gates all action calls that require loaded claim context."
@@ -175,23 +175,21 @@ subagent ClaimReview:
          |
          | GOLDEN RULE for ALL decision paths (4A-4D): The tool call AND the user-facing confirmation message MUST happen in the SAME turn. Never end a turn silent after a tool call — always emit the confirmation immediately. Treat each "decisive" turn as: helper setters → tool call → confirmation message, all in one response.
          |
-         | STEP 4A — APPROVE (end with confirmation in same turn)
-         | If adjuster says "approve" (including typos: "apporve", "approve anyway", "approve it"):
+         | STEP 4A — APPROVE (one-shot, decisive in a single turn for sub-$2,000)
+         | Triggered when adjuster says "approve" (including typos: "apporve", "approve anyway", "approve it") — even if a rationale is appended in the same message ("approve, looks good", "approve this claim").
          | - If eligibility is "Not Covered":
          |     WARN: "Claim {!@variables.claim_number} is 'Not Covered' per policy. A standard approval is not recommended."
          |     Ask: "This requires a GOODWILL EXCEPTION for manager review. Shall I route this as Goodwill? (yes/no)"
-         |     On yes → transition to GoodwillReview subagent. On no → return to STEP 4.
+         |     On yes → go to STEP 4D (the user has now explicitly opted into Goodwill). On no → return to STEP 4.
          | - If eligibility is "Likely" or "Borderline":
-         |     Turn A1 — Ask for rationale if not yet provided.
-         |     Turn A2 (DECISIVE — do ALL of these in this one turn, then emit confirmation):
+         |     ONE-SHOT path (preferred): if the adjuster's message contains both the verb "approve" AND any free-form text after it, treat the trailing text as the rationale and complete in a single turn.
+         |     Turn A1 (only if rationale is missing) — Ask: "Got it. Please provide a one-sentence rationale for the approval (audit requirement)."
+         |     Turn A2 (DECISIVE — all in one turn):
          |       1. Call {!@actions.set_variable_decision_rationale} with the rationale text.
-         |       2. Parse numeric value from estimated_cost (strip "$" and ",").
-         |          If value <= 2000: call {!@actions.set_variable_confirmed_above_threshold} with True.
-         |          If value > 2000 AND confirmed_above_threshold is False:
-         |            → Ask: "This claim is {estimated_cost}, above the $2,000 threshold. Confirm approval? (yes/no)" and END this turn. Resume on next turn when adjuster says yes.
+         |       2. Parse numeric value from estimated_cost (strip "$" and ","). If value > 2000, ask once: "This claim is {!@variables.estimated_cost}, above the $2,000 threshold. Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
          |       3. Call {!@actions.tool_ApproveWarrantyClaim}.
          |       4. IMMEDIATELY emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified."
-         |     Never end this turn silent — step 4 ALWAYS emits the message after the tool returns.
+         |     Never end this turn silent — step 4 ALWAYS emits the message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
          |
          | STEP 4B — REJECT (deterministic, turn-by-turn — follow strictly)
          | Initiated when adjuster says "reject", "deny", "decline" AND reason_code is empty.
@@ -214,9 +212,11 @@ subagent ClaimReview:
          |   3. IMMEDIATELY emit: "📩 *Clarification sent to {!@variables.dealer_name}* via WhatsApp. Claim status: Needs More Info."
          | Never end this turn silent.
          |
-         | STEP 4D — GOODWILL (decisive in one turn)
-         | If adjuster says "goodwill" or "escalate to goodwill":
-         | Turn D1 — Ask: "This will route as a Goodwill exception for manager review. Please provide the justification reason for this override."
+         | STEP 4D — GOODWILL (decisive in one turn — REQUIRES EXPLICIT INTENT)
+         | Triggered ONLY when the adjuster types the word "goodwill" or "escalate to goodwill" — never as a fallback for blocked Approve calls.
+         | Turn D1 — Set the explicit intent flag and ask for the justification:
+         |   1. Call {!@actions.set_variable_goodwill_intent_confirmed} with True.
+         |   2. Ask: "This will route as a Goodwill exception for manager review. Please provide the justification reason for this override."
          | Turn D2 (DECISIVE — do ALL of these in this one turn): When adjuster provides the reason text:
          |   1. Call {!@actions.set_variable_decision_rationale} with the reason text.
          |   2. Call {!@actions.tool_SubmitGoodwillReview}.
@@ -224,15 +224,16 @@ subagent ClaimReview:
          | Never end this turn silent.
          |
          | SHORTCUT COMMANDS (one-shot processing):
-         | - "APPROVE WC-XXXXX [reason]" → load context, set rationale, then approve (still enforces $2000 gate).
+         | - "APPROVE WC-XXXXX [reason]" → load context, set rationale, call tool_ApproveWarrantyClaim, emit ✅ confirmation. NEVER call tool_SubmitGoodwillReview from this path.
          | - "REJECT WC-XXXXX [reason code] [reason]" → load context, set reason code + rationale, then reject.
-         | - "GOODWILL WC-XXXXX [reason]" → load context, set rationale, then escalate.
+         | - "GOODWILL WC-XXXXX [reason]" → load context, set goodwill_intent_confirmed = True, set rationale, then escalate.
          |
          | GUARDRAILS:
          | - Never skip STEP 1 — all decisions require loaded context.
-         | - Never skip the $2,000 gate for approvals above threshold.
          | - Never act on already-decided claims.
          | - Always capture a decision_rationale before approve/reject/goodwill (audit requirement).
+         | - Never call tool_SubmitGoodwillReview unless the adjuster has explicitly typed "goodwill" or accepted the Goodwill prompt for a Not-Covered claim. If the adjuster says "approve" and ApproveWarrantyClaim's gate is not yet open, that is a wiring problem — fix it by capturing the rationale, NOT by routing to Goodwill.
+         | - For approvals where estimated_cost is above $2,000, ask the adjuster once: "Confirm approval? (yes/no)" and only proceed on explicit yes.
       actions:
          set_variable_claim_number: @utils.setVariables
             description: "Extract ONLY the WC-XXXXX token from the adjuster's message and store it as claim_number. Examples: 'claim number is WC-EDCA2' → store 'WC-EDCA2'; 'review WC-JLCAM please' → store 'WC-JLCAM'; 'wc-abc12' → store 'WC-ABC12' (uppercase normalized). Never store surrounding words, punctuation, or lowercase. Call this IMMEDIATELY when the adjuster mentions a claim number, BEFORE tool_GetWarrantyClaimApprovalContext."
@@ -242,7 +243,7 @@ subagent ClaimReview:
             with context_loaded = ...
          set_variable_reset_for_new_claim: @utils.setVariables
             description: "Reset session state when the adjuster switches to a new claim number. Call this BEFORE tool_GetWarrantyClaimApprovalContext if the incoming claim_number differs from the currently loaded one, OR if the adjuster explicitly says 'new claim' / 'review another'. Clears stale approval confirmation flags."
-            with confirmed_above_threshold = ...
+            with goodwill_intent_confirmed = ...
             with decision_rationale = ...
             with reason_code = ...
             with clarification_question = ...
@@ -256,9 +257,9 @@ subagent ClaimReview:
          set_variable_clarification_question: @utils.setVariables
             description: "Store the specific question to send to the dealer. Call BEFORE tool_RequestDealerClarification."
             with clarification_question = ...
-         set_variable_confirmed_above_threshold: @utils.setVariables
-            description: "Set True only after the adjuster explicitly confirms approval of a claim whose estimated_cost is above $2,000. Deterministic gate for tool_ApproveWarrantyClaim."
-            with confirmed_above_threshold = ...
+         set_variable_goodwill_intent_confirmed: @utils.setVariables
+            description: "Set True ONLY when the adjuster explicitly says 'goodwill' or 'escalate to goodwill' OR explicitly agrees to route a Not-Covered claim as Goodwill. Never set True implicitly. Deterministic gate for tool_SubmitGoodwillReview — without this True, Goodwill cannot fire even if rationale is set."
+            with goodwill_intent_confirmed = ...
          tool_GetWarrantyClaimApprovalContext: @actions.GetWarrantyClaimApprovalContext
             available when (@variables.claim_number is not None and @variables.claim_number != "") or (@variables.claim_id is not None and @variables.claim_id != "")
             with claimId = @variables.claim_id
@@ -285,7 +286,7 @@ subagent ClaimReview:
             set @variables.ai_image_analysis = @outputs.aiImageAnalysis
             set @variables.slack_reference = @outputs.slackReference
          tool_ApproveWarrantyClaim: @actions.ApproveWarrantyClaim
-            available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.claim_status != "Approved" and @variables.claim_status != "Rejected" and @variables.decision_rationale is not None and @variables.confirmed_above_threshold == True
+            available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.claim_status != "Approved" and @variables.claim_status != "Rejected" and @variables.decision_rationale is not None
             with claimId = @variables.claim_id
             with decisionRationale = @variables.decision_rationale
             with approverSlackRef = @variables.slack_reference
@@ -302,7 +303,7 @@ subagent ClaimReview:
             with approverSlackRef = @variables.slack_reference
             with requiresFollowUp = True
          tool_SubmitGoodwillReview: @actions.SubmitGoodwillReview
-            available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.decision_rationale is not None
+            available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.decision_rationale is not None and @variables.goodwill_intent_confirmed == True
             with claimId = @variables.claim_id
             with goodwillReason = @variables.decision_rationale
          go_to_Escalation: @utils.transition to @subagent.Escalation
@@ -469,7 +470,7 @@ subagent ClaimReview:
       ApproveWarrantyClaim:
          description: "Marks the claim as Approved. Requires a Decision Rationale. Notifies dealer via WhatsApp."
          label: "Approve Warranty Claim"
-         require_user_confirmation: True
+         require_user_confirmation: False
          include_in_progress_indicator: True
          progress_indicator_message: "Approving claim..."
          target: "apex://ApproveWarrantyClaim"
@@ -504,7 +505,7 @@ subagent ClaimReview:
       RejectWarrantyClaim:
          description: "Marks the claim as Rejected. Requires a Reason Code and Rationale. Notifies dealer via WhatsApp."
          label: "Reject Warranty Claim"
-         require_user_confirmation: True
+         require_user_confirmation: False
          include_in_progress_indicator: True
          progress_indicator_message: "Rejecting claim..."
          target: "apex://RejectWarrantyClaim"
@@ -592,9 +593,9 @@ subagent ClaimReview:
                is_displayable: False
                filter_from_agent: True
       SubmitGoodwillReview:
-         description: "Escalates a claim to a goodwill policy exception. Use when coverage is denied but the dealer has a compelling case or the customer has strong loyalty history."
+         description: "Escalates a claim to a goodwill policy exception. ONLY call this when the adjuster explicitly says 'goodwill' or 'escalate to goodwill'. Never use as a fallback when ApproveWarrantyClaim is gated — that is a wiring bug, not an intent."
          label: "Submit Goodwill Review"
-         require_user_confirmation: True
+         require_user_confirmation: False
          include_in_progress_indicator: True
          progress_indicator_message: "Escalating to goodwill review..."
          target: "apex://SubmitGoodwillReview"

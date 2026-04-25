@@ -45,9 +45,18 @@ public with sharing class RequestDealerClarification {
         ];
 
         List<Claim> updates = new List<Claim>();
+        Set<Id> alreadyDecided = new Set<Id>();
         for (Claim claim : claims) {
             Input request = inputMap.get(claim.Id);
             if (request == null) {
+                continue;
+            }
+
+            // Defense-in-depth: don't regress an already-decided claim.
+            // Agent reasoning is supposed to block this, but a misfire here
+            // would silently overwrite Approved → Needs More Info.
+            if (claim.Status == 'Approved' || claim.Status == 'Rejected') {
+                alreadyDecided.add(claim.Id);
                 continue;
             }
 
@@ -73,9 +82,14 @@ public with sharing class RequestDealerClarification {
             if (request != null && request.claimId != null && inputMap.containsKey(request.claimId)) {
                 Claim c = null;
                 for(Claim clm : claims) if(clm.Id == request.claimId) c = clm;
-                
-                result.status = 'Success';
-                result.message = 'Clarification request recorded.';
+
+                if (alreadyDecided.contains(request.claimId)) {
+                    result.status = 'Skipped';
+                    result.message = 'Claim is already decided (Approved or Rejected). Clarification not sent.';
+                } else {
+                    result.status = 'Success';
+                    result.message = 'Clarification request recorded.';
+                }
                 if (c != null) {
                     result.dealerWhatsAppNumber = c.DealerWhatsAppNumber__c;
                     result.submissionChannel = c.SubmissionChannel__c;

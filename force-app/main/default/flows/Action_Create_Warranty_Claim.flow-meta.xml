@@ -1,6 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <actionCalls>
+        <name>Invoke_AI_Verdict_Prompt</name>
+        <label>Invoke AI Verdict (Prompt Builder)</label>
+        <locationX>182</locationX>
+        <locationY>553</locationY>
+        <actionName>InvokeClaimVerdictPrompt</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Create_Chatter_Post</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Create_Chatter_Post</targetReference>
+        </faultConnector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>claimId</name>
+            <value>
+                <elementReference>Get_Created_Claim.Id</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>InvokeClaimVerdictPrompt</nameSegment>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </actionCalls>
+    <actionCalls>
         <name>Route_Claim_Apex</name>
         <label>Route Claim (auto-approve / auto-reject / queue)</label>
         <locationX>182</locationX>
@@ -450,7 +473,7 @@
         <locationX>182</locationX>
         <locationY>540</locationY>
         <connector>
-            <targetReference>Create_Chatter_Post</targetReference>
+            <targetReference>Invoke_AI_Verdict_Prompt</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>

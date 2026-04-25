@@ -99,13 +99,48 @@ public without sharing class InvokeClaimVerdictPrompt {
      * available yet (the call then returns null and fallback fires).
      */
     private static Map<String, Object> tryPromptTemplate(Claim c) {
+        // Primary path — modern ConnectApi.EinsteinLLM. Returns null on any
+        // failure or when the template returns no generations, so the caller
+        // can fall back to the rule-based verdict.
+        String rawText = invokeViaConnectApi(c);
+        if (String.isBlank(rawText)) return null;
         try {
-            // Build the prompt-template input as a generic Map<String, Object>
-            // so we don't hard-dependency compile-time on specific Einstein types.
-            // At runtime we serialize this to JSON and invoke a standard action
-            // if available; otherwise we return null for fallback.
+            String cleaned = stripCodeFences(rawText);
+            Object parsed = JSON.deserializeUntyped(cleaned);
+            if (!(parsed instanceof Map<String, Object>)) return null;
+            Map<String, Object> asMap = (Map<String, Object>) parsed;
+            if (!asMap.containsKey('recommendation') || !asMap.containsKey('confidence')) {
+                return null;
+            }
+            return asMap;
+        } catch (Exception e) {
+            System.debug('InvokeClaimVerdictPrompt: parse failed — ' + e.getMessage());
+            return null;
+        }
+    }
 
-            Map<String, Object> inputRecord = new Map<String, Object>{
+    /**
+     * Calls the Prompt Template via ConnectApi.EinsteinLLM. This is the
+     * modern, Apex-native invocation path. Requires the template to be
+     * configured AND ACTIVATED in Prompt Builder.
+     *
+     * Returns the LLM response text, or null on any failure/empty response.
+     */
+    private static String invokeViaConnectApi(Claim c) {
+        try {
+            ConnectApi.EinsteinPromptTemplateGenerationsInput inp =
+                new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+
+            ConnectApi.EinsteinLlmAdditionalConfigInput addCfg =
+                new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            addCfg.applicationName = 'PromptBuilderPreview';
+            inp.additionalConfig = addCfg;
+            inp.isPreview = false;
+
+            // The Prompt Builder runtime expects an Object input as a
+            // Map<String, Object> keyed by field API names — NOT the SObject
+            // itself or the record Id alone. Probe-verified.
+            Map<String, Object> claimMap = new Map<String, Object>{
                 'Id'              => c.Id,
                 'Name'            => c.Name,
                 'PartCategory__c' => c.PartCategory__c,
@@ -114,33 +149,27 @@ public without sharing class InvokeClaimVerdictPrompt {
                 'EstimatedCost__c'=> c.EstimatedCost__c,
                 'Eligibility__c'  => c.Eligibility__c
             };
+            ConnectApi.WrappedValue claimWv = new ConnectApi.WrappedValue();
+            claimWv.value = claimMap;
+            inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
+                'Input:Claim' => claimWv
+            };
 
-            Invocable.Action a = Invocable.Action.createStandardAction(
-                'generativeAi:generatePromptTemplateResponse');
-            a.setInvocationParameter('promptTemplateDevName', TEMPLATE_DEV_NAME);
-            a.setInvocationParameter('inputRecord', inputRecord);
+            ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =
+                ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(
+                    TEMPLATE_DEV_NAME, inp);
 
-            List<Invocable.Action.Result> results = a.invoke();
-            if (results == null || results.isEmpty() || !results[0].isSuccess()) {
+            if (result == null || result.generations == null || result.generations.isEmpty()) {
+                if (result != null && result.generationErrors != null && !result.generationErrors.isEmpty()) {
+                    System.debug('Template generation error: ' + result.generationErrors[0].errorMessage);
+                }
                 return null;
             }
-
-            Object output = results[0].getOutputParameters().get('promptResponse');
-            if (output == null) return null;
-
-            String rawText = String.valueOf(output);
-            String cleaned = stripCodeFences(rawText);
-            Object parsed = JSON.deserializeUntyped(cleaned);
-            if (!(parsed instanceof Map<String, Object>)) return null;
-
-            Map<String, Object> asMap = (Map<String, Object>) parsed;
-            if (!asMap.containsKey('recommendation') || !asMap.containsKey('confidence')) {
-                return null;
-            }
-            return asMap;
+            String text = result.generations[0].text;
+            return String.isBlank(text) ? null : text;
         } catch (Exception e) {
-            System.debug('InvokeClaimVerdictPrompt: template call failed — '
-                + e.getMessage() + '\n' + e.getStackTraceString());
+            System.debug('InvokeClaimVerdictPrompt ConnectApi call failed: '
+                + e.getMessage());
             return null;
         }
     }
