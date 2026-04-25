@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CalculatedInsight xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Measures the claim submission rate per dealer over a rolling 30-day window. Flags dealers with abnormally high claim frequency (velocity &gt; 2x org average) as elevated risk. Surfaced in the Approver Agent risk flags via GetWarrantyClaimApprovalContext.</description>
+    <label>Dealer Claim Velocity</label>
+    <targetDataModelObject>
+        <dataModelObject>Claim__dlm</dataModelObject>
+        <targetObject>DealerClaimVelocity__dlm</targetObject>
+    </targetDataModelObject>
+    <insightDimensions>
+        <dimension>
+            <fieldName>DealerId__c</fieldName>
+            <label>Dealer Id</label>
+        </dimension>
+        <dimension>
+            <fieldName>DealerName__c</fieldName>
+            <label>Dealer Name</label>
+        </dimension>
+    </insightDimensions>
+    <insightMeasures>
+        <measure>
+            <aggregateFunction>COUNT</aggregateFunction>
+            <fieldName>ClaimCount__c</fieldName>
+            <label>Claims in Last 30 Days</label>
+            <sourceFieldName>ClaimId__c</sourceFieldName>
+        </measure>
+        <measure>
+            <aggregateFunction>AVG</aggregateFunction>
+            <fieldName>AvgEstimatedCost__c</fieldName>
+            <label>Average Estimated Cost</label>
+            <sourceFieldName>EstimatedCost__c</sourceFieldName>
+        </measure>
+        <measure>
+            <aggregateFunction>COUNT_DISTINCT</aggregateFunction>
+            <fieldName>UniqueVinCount__c</fieldName>
+            <label>Unique VINs Claimed</label>
+            <sourceFieldName>Vin__c</sourceFieldName>
+        </measure>
+    </insightMeasures>
+    <filterCondition>SubmissionDate__c &gt;= LAST_N_DAYS:30</filterCondition>
+    <refreshFrequency>Daily</refreshFrequency>
+</CalculatedInsight>

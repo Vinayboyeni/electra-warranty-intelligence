@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LastEventDate__c</fullName>
+    <description>Timestamp of the most recent telemetry event for the VIN in the 30-day window.</description>
+    <externalId>false</externalId>
+    <label>Last Event Date</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

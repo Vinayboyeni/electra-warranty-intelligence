@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Missing_Info_Flag__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Indicates whether the claim is missing information needed for a decision.</description>
+    <label>Missing Info Flag</label>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Checkbox</type>
+</CustomField>

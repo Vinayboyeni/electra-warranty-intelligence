@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Authorization_Type__c</fullName>
+    <description>Business category of the warranty authorization request.</description>
+    <label>Authorization Type</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Prior Authorization</fullName>
+                <default>true</default>
+                <label>Prior Authorization</label>
+            </value>
+            <value>
+                <fullName>Post Repair Claim</fullName>
+                <default>false</default>
+                <label>Post Repair Claim</label>
+            </value>
+            <value>
+                <fullName>Goodwill Exception</fullName>
+                <default>false</default>
+                <label>Goodwill Exception</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

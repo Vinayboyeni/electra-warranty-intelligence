@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Assign_Results</name>
+        <label>Assign Results</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <assignmentItems>
+            <assignToReference>dtcDescription</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaDTCDescription</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>recommendedAction</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaRecommendedAction</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>dtcSeverity</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaDTCSeverity</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>isKnownIssue</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaIsKnownIssue</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <formulas>
+        <name>formulaDTCDescription</name>
+        <dataType>String</dataType>
+        <expression>UPPER({!dtcCode}) + &quot; — &quot; + 
+IF(OR(BEGINS(UPPER({!dtcCode}), &quot;P0A&quot;), BEGINS(UPPER({!dtcCode}), &quot;P0B&quot;)), &quot;High-Voltage Battery / Hybrid System Fault&quot;,
+CASE(LEFT(UPPER({!dtcCode}), 2),
+&quot;P0&quot;, &quot;Generic Powertrain Fault — Manufacturer-Independent&quot;,
+&quot;P1&quot;, &quot;Powertrain Fault — Manufacturer-Specific&quot;,
+&quot;P2&quot;, &quot;Generic Powertrain Fault (Enhanced)&quot;,
+&quot;C0&quot;, &quot;Generic Chassis / ABS / Brake System Fault&quot;,
+&quot;B0&quot;, &quot;Generic Body Control Fault&quot;,
+&quot;U0&quot;, &quot;Network / CAN Bus Communication Fault&quot;,
+&quot;Unrecognized fault code. Please verify the code with your OBD scanner.&quot;)
+)</expression>
+    </formulas>
+    <formulas>
+        <name>formulaDTCSeverity</name>
+        <dataType>String</dataType>
+        <expression>IF(OR(BEGINS(UPPER({!dtcCode}), &quot;P0A&quot;), BEGINS(UPPER({!dtcCode}), &quot;P0B&quot;)), &quot;High&quot;, &quot;Medium&quot;)</expression>
+    </formulas>
+    <formulas>
+        <name>formulaIsKnownIssue</name>
+        <dataType>Boolean</dataType>
+        <expression>OR(BEGINS(UPPER({!dtcCode}), &quot;P0A&quot;), BEGINS(UPPER({!dtcCode}), &quot;P0B&quot;))</expression>
+    </formulas>
+    <formulas>
+        <name>formulaRecommendedAction</name>
+        <dataType>String</dataType>
+        <expression>IF(OR(BEGINS(UPPER({!dtcCode}), &quot;P0A&quot;), BEGINS(UPPER({!dtcCode}), &quot;P0B&quot;)), 
+&quot;Inspect and replace high-voltage battery pack per Electra Service Bulletin ESB-HV-001. Do not drive vehicle until repaired.&quot;,
+&quot;Consult the Electra Cars service manual or contact OEM Technical Support for repair guidance.&quot;
+)</expression>
+    </formulas>
+    <interviewLabel>Action_Decode_Diagnostic_Code {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Action_Decode_Diagnostic_Code</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Assign_Results</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>dtcCode</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>dtcDescription</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>dtcSeverity</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>isKnownIssue</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>recommendedAction</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>vehicleId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+</Flow>

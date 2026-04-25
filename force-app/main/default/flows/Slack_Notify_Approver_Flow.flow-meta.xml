@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>Build_Claim_Approval_Context</name>
+        <label>Build Claim Approval Context</label>
+        <locationX>176</locationX>
+        <locationY>80</locationY>
+        <actionName>GetWarrantyClaimApprovalContext</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Post_To_Slack</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>claimId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>GetWarrantyClaimApprovalContext</nameSegment>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </actionCalls>
+    <actionCalls>
+        <name>Post_To_Slack</name>
+        <label>Post To Slack Webhook</label>
+        <locationX>176</locationX>
+        <locationY>140</locationY>
+        <actionName>PostToSlackWebhook</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Post_Claim_Notification</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Post_Claim_Notification</targetReference>
+        </faultConnector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>body</name>
+            <value>
+                <elementReference>Approver_Notification_Body</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>claimId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>PostToSlackWebhook</nameSegment>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </actionCalls>
+    <apiVersion>61.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <description>Triggered when a Warranty Claim status changes to Pending Approver Review. Builds the full AI-enriched claim context card and posts it to the claim Chatter feed (and Slack channel if integrated) to notify the OEM adjuster queue.</description>
+    <environments>Default</environments>
+    <interviewLabel>Slack Notify Approver {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Slack Notify Approver Flow</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordCreates>
+        <name>Post_Claim_Notification</name>
+        <label>Post Claim Notification to Chatter</label>
+        <locationX>176</locationX>
+        <locationY>188</locationY>
+        <connector>
+            <targetReference>Update_Last_Status_Change</targetReference>
+        </connector>
+        <inputAssignments>
+            <field>Body</field>
+            <value>
+                <elementReference>Approver_Notification_Body</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>ParentId</field>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputAssignments>
+        <object>FeedItem</object>
+    </recordCreates>
+    <recordUpdates>
+        <name>Update_Last_Status_Change</name>
+        <label>Update Last Status Change</label>
+        <locationX>176</locationX>
+        <locationY>296</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>LastDealerInteraction__c</field>
+            <value>
+                <elementReference>$Flow.CurrentDateTime</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Claim</object>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Build_Claim_Approval_Context</targetReference>
+        </connector>
+        <doesRequireRecordChangedToMeetCriteria>true</doesRequireRecordChangedToMeetCriteria>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Status</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Pending Approver Review</stringValue>
+            </value>
+        </filters>
+        <object>Claim</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <scheduledPaths>
+            <connector>
+                <targetReference>Build_Claim_Approval_Context</targetReference>
+            </connector>
+            <pathType>AsyncAfterCommit</pathType>
+        </scheduledPaths>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+    <textTemplates>
+        <name>Approver_Notification_Body</name>
+        <isViewedAsPlainText>true</isViewedAsPlainText>
+        <text>🔔 WARRANTY CLAIM READY FOR REVIEW
+{!Build_Claim_Approval_Context.slackMessageBody}
+---
+SLA Deadline: {!$Record.SLA_Due_Date__c}
+➡️ Open claim in Salesforce or reply via Slack to Approve / Reject / Clarify.</text>
+    </textTemplates>
+</Flow>

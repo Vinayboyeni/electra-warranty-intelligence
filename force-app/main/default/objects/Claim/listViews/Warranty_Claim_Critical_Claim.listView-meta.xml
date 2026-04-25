@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Warranty_Claim_Critical_Claim</fullName>
+    <filterScope>Queue</filterScope>
+    <label>Warranty Claim Critical</label>
+    <queue>Warranty_Claim_Critical</queue>
+    <sharedTo>
+        <allInternalUsers></allInternalUsers>
+    </sharedTo>
+</ListView>

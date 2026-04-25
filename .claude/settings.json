@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sf apex *)",
+      "Bash(cmd /c \"cd /d \\\\\"c:\\\\Users\\\\vinay\\\\Downloads\\\\Warrenty Claim agent\\\\\" && sf data query --query \\\\\"SELECT Id, Name FROM ClaimApprovalLog LIMIT 5\\\\\" --target-org vscodeOrg\")",
+      "Bash(grep -iE \"\\\\.md$|doc\")",
+      "Bash(sf project *)"
+    ]
+  }
+}

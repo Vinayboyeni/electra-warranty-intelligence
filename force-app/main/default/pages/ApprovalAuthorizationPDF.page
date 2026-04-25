@@ -1,0 +1,184 @@
+<apex:page standardController="Claim"
+           renderAs="pdf"
+           applyBodyTag="false"
+           showHeader="false"
+           sidebar="false">
+<html>
+<head>
+    <style type="text/css">
+        @page {
+            size: letter;
+            margin: 0.6in 0.6in 0.5in 0.6in;
+            @bottom-center {
+                content: "Electra Cars, Inc. — Confidential Business Document — Page " counter(page) " of " counter(pages);
+                font-size: 8pt;
+                color: #888888;
+            }
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10pt;
+            color: #222222;
+            line-height: 1.4;
+        }
+        table { border-collapse: collapse; }
+        td { vertical-align: top; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #0B5394; padding-bottom: 8px; margin-bottom: 6px;">
+    <tr>
+        <td width="62%" style="vertical-align: middle; padding: 0;">
+            <div style="font-size: 22pt; font-weight: bold; color: #0B5394; letter-spacing: 1.5px; line-height: 1;">ELECTRA CARS</div>
+            <div style="font-size: 9pt; color: #666666; padding-top: 4px; letter-spacing: 0.4px;">Original Equipment Manufacturer &nbsp;|&nbsp; Warranty Operations Division</div>
+        </td>
+        <td width="38%" style="vertical-align: middle; text-align: right; padding: 0; font-size: 9pt; color: #666666; line-height: 1.5;">
+            <div><span style="color: #0B5394; font-weight: bold;">Document:</span> Warranty Prior-Auth</div>
+            <div><span style="color: #0B5394; font-weight: bold;">Issued:</span> <apex:outputText value="{0,date,MMM d, yyyy}"><apex:param value="{!Claim.ApprovalDate__c}" /></apex:outputText></div>
+            <div><span style="color: #0B5394; font-weight: bold;">Claim #:</span> {!Claim.Name}</div>
+        </td>
+    </tr>
+</table>
+
+<div style="margin-top: 18px; margin-bottom: 4px;">
+    <div style="font-size: 18pt; font-weight: bold; color: #0B5394; line-height: 1.1;">Prior-Authorization Certificate</div>
+    <div style="font-size: 10pt; color: #555555; padding-top: 6px; font-style: italic;">This document certifies OEM approval for the warranty repair described below. Present to the customer before commencing work.</div>
+</div>
+
+<!-- CLAIM REFERENCE -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; margin-bottom: 4px;">
+    <tr><td style="border-bottom: 1.5px solid #0B5394; padding: 2px 0 4px 0; font-size: 10pt; font-weight: bold; color: #0B5394; letter-spacing: 1.2px;">CLAIM REFERENCE</td></tr>
+</table>
+<table width="100%" cellpadding="4" cellspacing="0" style="margin-top: 6px;">
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Claim Number</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt; font-weight: bold;">{!Claim.Name}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Approval Date</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">
+            <apex:outputText value="{0,date,MMMM d, yyyy 'at' h:mm a}">
+                <apex:param value="{!Claim.ApprovalDate__c}" />
+            </apex:outputText>
+        </td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Approved By</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.Owner.Name}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Authorization Validity</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">30 days from approval date</td>
+    </tr>
+</table>
+
+<!-- VEHICLE & DEALER -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; margin-bottom: 4px;">
+    <tr><td style="border-bottom: 1.5px solid #0B5394; padding: 2px 0 4px 0; font-size: 10pt; font-weight: bold; color: #0B5394; letter-spacing: 1.2px;">VEHICLE &amp; DEALER</td></tr>
+</table>
+<table width="100%" cellpadding="4" cellspacing="0" style="margin-top: 6px;">
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Vehicle</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!IF(ISBLANK(Claim.Vehicle__r.Name), "—", Claim.Vehicle__r.Name)}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Odometer at Fault</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.Odometer__c} miles</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Dealer</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.Account.Name}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Dealer Account #</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!IF(ISBLANK(Claim.Account.AccountNumber), "—", Claim.Account.AccountNumber)}</td>
+    </tr>
+</table>
+
+<!-- AUTHORIZATION DETAILS -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; margin-bottom: 4px;">
+    <tr><td style="border-bottom: 1.5px solid #0B5394; padding: 2px 0 4px 0; font-size: 10pt; font-weight: bold; color: #0B5394; letter-spacing: 1.2px;">AUTHORIZATION DETAILS</td></tr>
+</table>
+<table width="100%" cellpadding="4" cellspacing="0" style="margin-top: 6px;">
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Part Category</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt; font-weight: bold;">{!Claim.PartCategory__c}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Reported Symptom</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.Symptom__c}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Approved Amount</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt; font-weight: bold;">
+            <apex:outputText value="${0, number, ###,##0.00}">
+                <apex:param value="{!Claim.EstimatedCost__c}" />
+            </apex:outputText>
+        </td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Coverage Verdict</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.Eligibility__c}</td>
+    </tr>
+    <tr>
+        <td width="32%" style="color: #555555; font-size: 9.5pt;">Submission Channel</td>
+        <td width="68%" style="color: #111111; font-size: 10.5pt;">{!Claim.SubmissionChannel__c}</td>
+    </tr>
+</table>
+
+<!-- RATIONALE -->
+<apex:outputPanel rendered="{!NOT(ISBLANK(Claim.DecisionRationale__c))}">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; margin-bottom: 4px;">
+    <tr><td style="border-bottom: 1.5px solid #0B5394; padding: 2px 0 4px 0; font-size: 10pt; font-weight: bold; color: #0B5394; letter-spacing: 1.2px;">APPROVER RATIONALE</td></tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 6px;">
+    <tr><td style="padding: 10px 14px; border-left: 3px solid #0B5394; background-color: #F5F8FB; font-style: italic; color: #333333; font-size: 10pt; line-height: 1.45;">"{!Claim.DecisionRationale__c}"</td></tr>
+</table>
+</apex:outputPanel>
+
+<!-- VERIFICATION BLOCK (no external images — reliable in all PDF renderers) -->
+<table class="verify-block" style="margin-top: 22px; width: 100%; border: 2px solid #0B5394; border-collapse: collapse;">
+    <tr>
+        <td style="padding: 12px 18px; background-color: #F0F5FA; width: 55%; vertical-align: middle;">
+            <div style="font-size: 8.5pt; color: #666666; letter-spacing: 1px;">AUTHORIZATION VERIFICATION CODE</div>
+            <div style="font-family: 'Courier New', Courier, monospace; font-size: 16pt; font-weight: bold; color: #0B5394; letter-spacing: 2px; padding-top: 4px;">{!Claim.Name}-AUTH</div>
+            <div style="font-size: 8.5pt; color: #666666; padding-top: 4px;">Present to Electra Warranty Operations for dispute resolution.</div>
+        </td>
+        <td style="padding: 12px 18px; vertical-align: middle; border-left: 1px solid #CCCCCC;">
+            <div style="font-size: 8.5pt; color: #666666; letter-spacing: 1px;">CLAIM RECORD REFERENCE</div>
+            <div style="font-size: 9pt; font-family: 'Courier New', Courier, monospace; color: #0B5394; padding-top: 4px; word-break: break-all;">{!Claim.Id}</div>
+            <div style="font-size: 8.5pt; color: #666666; padding-top: 4px;">View in Salesforce: lightning/r/Claim/{!Claim.Id}/view</div>
+        </td>
+    </tr>
+</table>
+
+<!-- INSTRUCTIONS -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; padding-top: 10px;">
+    <tr>
+        <td style="border-top: 1px solid #CCCCCC; padding-top: 10px; font-size: 9pt; color: #555555; line-height: 1.5;">
+            <b style="color: #333333;">Dealer instructions:</b> Present this authorization to the customer before commencing repair. Submit invoice referencing the claim number above within 10 business days of repair completion. Failure to meet the authorization window or invoice deadline may invalidate reimbursement.<br/><br/>
+            <b style="color: #333333;">Questions:</b> Contact Electra Warranty Operations at <b>1-800-ELECTRA (1-800-353-2872)</b>. For urgent safety issues, call the Electra Safety Hotline at the same number (24/7).
+        </td>
+    </tr>
+</table>
+
+<!-- SIGNATURES -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 28px;">
+    <tr>
+        <td width="46%" style="border-top: 1px solid #888888; padding: 20px 0 4px 0; font-size: 9pt; color: #666666;">
+            OEM APPROVER<br/>
+            <span style="font-size: 8pt;">{!Claim.Owner.Name}</span>
+        </td>
+        <td width="8%"></td>
+        <td width="46%" style="border-top: 1px solid #888888; padding: 20px 0 4px 0; font-size: 9pt; color: #666666;">
+            DEALER ACKNOWLEDGEMENT<br/>
+            <span style="font-size: 8pt;">{!Claim.Account.Name}</span>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+</apex:page>

@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Assign_Baseline</name>
+        <label>Assign Baseline</label>
+        <locationX>182</locationX>
+        <locationY>242</locationY>
+        <assignmentItems>
+            <assignToReference>baselineAmount</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaBaseline</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Check_Baseline_Exists</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Assign_No_Baseline_Result</name>
+        <label>Assign No Baseline Result</label>
+        <locationX>314</locationX>
+        <locationY>458</locationY>
+        <assignmentItems>
+            <assignToReference>isWithinRange</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>validationMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaNoBaselineMessage</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Assign_Range_Result</name>
+        <label>Assign Range Result</label>
+        <locationX>50</locationX>
+        <locationY>458</locationY>
+        <assignmentItems>
+            <assignToReference>isWithinRange</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaIsWithinRange</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>variancePercent</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaVariancePerc</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>validationMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>formulaValidationMessage</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <decisions>
+        <name>Check_Baseline_Exists</name>
+        <label>Check Baseline Exists</label>
+        <locationX>182</locationX>
+        <locationY>350</locationY>
+        <defaultConnector>
+            <targetReference>Assign_No_Baseline_Result</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Baseline</defaultConnectorLabel>
+        <rules>
+            <name>Has_Baseline</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>baselineAmount</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue>
+                    <numberValue>0.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Range_Result</targetReference>
+            </connector>
+            <label>Has Baseline</label>
+        </rules>
+    </decisions>
+    <formulas>
+        <name>formulaBaseline</name>
+        <dataType>Number</dataType>
+        <expression>CASE({!partCategory},
+&quot;Battery&quot;, 4500,
+&quot;Drive Motor&quot;, 3200,
+&quot;Engine&quot;, 5500,
+&quot;Transmission&quot;, 2800,
+&quot;Brake System&quot;, 900,
+&quot;Suspension&quot;, 1200,
+&quot;HVAC&quot;, 1500,
+&quot;Electrical&quot;, 800,
+&quot;Infotainment&quot;, 600,
+&quot;Charging System&quot;, 1100,
+&quot;Water Pump&quot;, 900,
+&quot;Pump&quot;, 900,
+0)</expression>
+        <scale>2</scale>
+    </formulas>
+    <formulas>
+        <name>formulaIsWithinRange</name>
+        <dataType>Boolean</dataType>
+        <expression>{!formulaVariancePerc} &lt;= 20</expression>
+    </formulas>
+    <formulas>
+        <name>formulaNoBaselineMessage</name>
+        <dataType>String</dataType>
+        <expression>&quot;No SRT baseline found for &quot; + {!partCategory} + &quot;. Amount accepted as submitted.&quot;</expression>
+    </formulas>
+    <formulas>
+        <name>formulaValidationMessage</name>
+        <dataType>String</dataType>
+        <expression>IF({!formulaIsWithinRange}, 
+&quot;Requested amount of $&quot; + TEXT({!requestedAmount}) + &quot; is within the SRT baseline of $&quot; + TEXT({!baselineAmount}) + &quot; for &quot; + {!partCategory} + &quot;.&quot;,
+&quot;Requested amount of $&quot; + TEXT({!requestedAmount}) + &quot; is &quot; + TEXT({!formulaVariancePerc}) + &quot;% above the SRT baseline of $&quot; + TEXT({!baselineAmount}) + &quot; for &quot; + {!partCategory} + &quot;. Dealer justification required before submission.&quot;
+)</expression>
+    </formulas>
+    <formulas>
+        <name>formulaVariancePerc</name>
+        <dataType>Number</dataType>
+        <expression>(({!requestedAmount} - {!baselineAmount}) / {!baselineAmount}) * 100</expression>
+        <scale>1</scale>
+    </formulas>
+    <interviewLabel>Action_Validate_Repair_Estimate {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Action_Validate_Repair_Estimate</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>56</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Assign_Baseline</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>baselineAmount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>2</scale>
+    </variables>
+    <variables>
+        <name>isWithinRange</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>partCategory</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>requestedAmount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <scale>2</scale>
+    </variables>
+    <variables>
+        <name>validationMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <name>variancePercent</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>1</scale>
+    </variables>
+</Flow>
