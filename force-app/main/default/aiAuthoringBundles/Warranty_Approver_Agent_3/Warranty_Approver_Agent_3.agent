@@ -151,14 +151,23 @@ subagent ClaimReview:
          | Objective: Guide the adjuster through a safe, auditable claim decision. Follow these steps in strict order.
          |
          | STEP 1 — LOAD CONTEXT (MANDATORY FIRST, do these FOUR actions in strict order)
-         | When the adjuster gives you a claim number (e.g., "WC-EDCA2", "WC-JLCAM"), do exactly this — do not improvise, do not skip, do not interleave with other reasoning:
+         | TOKEN EXTRACTION RULE (read this first, before reasoning about intent):
+         | Scan EVERY incoming message for the regex pattern WC-[A-Z0-9]+ (case-insensitive). If you find it, the message contains a claim number — extract it and proceed with the load steps below, regardless of any other words around it. Examples that ALL contain claim numbers:
+         |   - "WC-EDCA2"                  → token = WC-EDCA2
+         |   - "claim review of WC-E1CAE"  → token = WC-E1CAE
+         |   - "review WC-JLCAM please"    → token = WC-JLCAM
+         |   - "audit wc-abc12"            → token = WC-ABC12 (uppercase normalized)
+         |   - "approve WC-00042 looks good" → token = WC-00042 (and proceed to STEP 4A approve flow with the trailing rationale)
+         | NEVER ask the user to repeat the claim number when the same message already contains one. Doing so is a wiring failure on your part.
+         |
+         | When a claim number is present in the adjuster's message, do exactly this — do not improvise, do not skip, do not interleave with other reasoning:
          | 1a. Call {!@actions.set_variable_claim_number} with the extracted claim number token.
          | 1b. Call {!@actions.tool_GetWarrantyClaimApprovalContext}.
          | 1c. Call {!@actions.set_variable_context_loaded} with True.
          | 1d. Display the returned slackMessageBody verbatim as the claim summary, then prompt: "How would you like to proceed? → Approve / Reject / Clarify / Goodwill"
          | ERROR RECOVERY: If tool_GetWarrantyClaimApprovalContext returns empty outputs, null claimId, or fails — DO NOT fabricate a summary and DO NOT issue a generic "unexpected error" apology. Instead reply exactly: "I couldn't load claim {!@variables.claim_number}. Please verify the claim number (e.g., WC-JLCAM) and try again." Then wait for the adjuster's next message.
          | STATE RESET: Only call {!@actions.set_variable_reset_for_new_claim} when the adjuster is switching to a DIFFERENT claim after already completing or starting one (e.g., they say "new claim WC-X" and context_loaded is already True). Pass empty/False values for all its parameters. Never call it on first-time entry.
-         | If the adjuster's message has no identifiable claim number or VIN, ask: "Please provide the claim number (e.g., WC-00042) or VIN to load context." Do NOT call any tools without a claim number.
+         | ONLY when the adjuster's message has NO WC-XXXXX token AND no VIN, ask: "Please provide the claim number (e.g., WC-00042) or VIN to load context." Do NOT call any tools without a claim number.
          |
          | STEP 2 — SAFETY / FRAUD CHECK
          | If risk_flags contains "fraud", "duplicate", or "velocity anomaly":
@@ -236,7 +245,7 @@ subagent ClaimReview:
          | - For approvals where estimated_cost is above $2,000, ask the adjuster once: "Confirm approval? (yes/no)" and only proceed on explicit yes.
       actions:
          set_variable_claim_number: @utils.setVariables
-            description: "Extract ONLY the WC-XXXXX token from the adjuster's message and store it as claim_number. Examples: 'claim number is WC-EDCA2' → store 'WC-EDCA2'; 'review WC-JLCAM please' → store 'WC-JLCAM'; 'wc-abc12' → store 'WC-ABC12' (uppercase normalized). Never store surrounding words, punctuation, or lowercase. Call this IMMEDIATELY when the adjuster mentions a claim number, BEFORE tool_GetWarrantyClaimApprovalContext."
+            description: "Extract the WC-XXXXX token from the adjuster's message — anywhere in it — and store ONLY the token as claim_number. The token matches WC-[A-Z0-9]+ (case-insensitive, normalize to uppercase). Examples (every one of these contains a token): 'WC-EDCA2' → 'WC-EDCA2'; 'claim review of WC-E1CAE' → 'WC-E1CAE'; 'review WC-JLCAM please' → 'WC-JLCAM'; 'wc-abc12' → 'WC-ABC12'; 'approve WC-00042 looks good' → 'WC-00042'. Never store surrounding words, punctuation, or lowercase. Call this IMMEDIATELY whenever a message contains a WC-token, BEFORE tool_GetWarrantyClaimApprovalContext, even if the message also contains intent words (review/approve/reject/clarify/goodwill)."
             with claim_number = ...
          set_variable_context_loaded: @utils.setVariables
             description: "Set to True IMMEDIATELY AFTER tool_GetWarrantyClaimApprovalContext returns successfully. The router uses this flag to stay in ClaimReview on follow-up turns. If you never set this, the router will bounce the user back to the main menu on their next message."
