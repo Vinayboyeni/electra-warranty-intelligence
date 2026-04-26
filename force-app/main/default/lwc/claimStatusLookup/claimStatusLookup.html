@@ -1,0 +1,110 @@
+<template>
+    <div class="electra-card">
+        <div class="electra-card__header">
+            <div class="electra-card__title">Track your warranty claim</div>
+            <div class="electra-card__subtitle">Enter your claim number or VIN to see real-time status, decision rationale, and next steps.</div>
+        </div>
+
+        <div class="electra-form">
+            <div class="electra-form__row">
+                <label class="electra-label" for="claim">Claim number</label>
+                <input
+                    id="claim"
+                    type="text"
+                    class="electra-input"
+                    placeholder="WC-00042"
+                    value={claimNumber}
+                    onchange={handleClaimNumberChange}
+                    oninput={handleClaimNumberChange}
+                    onkeyup={handleKeyup}
+                    maxlength="20"
+                />
+            </div>
+            <div class="electra-form__divider">— or —</div>
+            <div class="electra-form__row">
+                <label class="electra-label" for="vin">VIN</label>
+                <input
+                    id="vin"
+                    type="text"
+                    class="electra-input"
+                    placeholder="17-character VIN"
+                    value={vin}
+                    onchange={handleVinChange}
+                    oninput={handleVinChange}
+                    onkeyup={handleKeyup}
+                    maxlength="17"
+                />
+            </div>
+
+            <div class="electra-form__actions">
+                <button class="electra-button electra-button--primary" onclick={handleLookup} disabled={isLoading}>
+                    <template if:true={isLoading}>Looking up…</template>
+                    <template if:false={isLoading}>Look up status</template>
+                </button>
+                <button class="electra-button electra-button--ghost" onclick={handleReset} type="button">Clear</button>
+            </div>
+
+            <template if:true={errorMessage}>
+                <div class="electra-error">{errorMessage}</div>
+            </template>
+        </div>
+
+        <template if:true={hasResult}>
+            <div class="electra-result">
+                <div class="electra-result__header">
+                    <div class="electra-result__claim-number">{result.claimNumber}</div>
+                    <div class={statusBadgeClass}>{result.status}</div>
+                </div>
+
+                <div class="electra-result__grid">
+                    <div class="electra-result__row">
+                        <div class="electra-result__label">Dealer</div>
+                        <div class="electra-result__value">{result.dealerName}</div>
+                    </div>
+                    <div class="electra-result__row">
+                        <div class="electra-result__label">Submitted</div>
+                        <div class="electra-result__value">{result.submissionDate}</div>
+                    </div>
+                    <div class="electra-result__row">
+                        <div class="electra-result__label">Part / Symptom</div>
+                        <div class="electra-result__value">{result.partCategory} — {result.symptom}</div>
+                    </div>
+                    <div class="electra-result__row">
+                        <div class="electra-result__label">Estimated cost</div>
+                        <div class="electra-result__value">{formattedEstimated}</div>
+                    </div>
+                    <template if:true={hasApprovedAmount}>
+                        <div class="electra-result__row electra-result__row--accent">
+                            <div class="electra-result__label">Approved amount</div>
+                            <div class="electra-result__value electra-result__value--cap">{formattedApproved} <span class="electra-result__cap-label">(capped from {formattedEstimated})</span></div>
+                        </div>
+                    </template>
+                    <div class="electra-result__row">
+                        <div class="electra-result__label">SLA due</div>
+                        <div class="electra-result__value">{result.slaDueDate}</div>
+                    </div>
+                </div>
+
+                <div class="electra-result__next-step">
+                    <div class="electra-result__next-step-label">Next step</div>
+                    <div class="electra-result__next-step-text">{result.nextStep}</div>
+                </div>
+
+                <template if:true={result.approverComment}>
+                    <div class="electra-result__rationale">
+                        <div class="electra-result__rationale-label">Approver note</div>
+                        <div class="electra-result__rationale-text">"{result.approverComment}"</div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template if:true={noResult}>
+            <div class="electra-empty">
+                <div class="electra-empty__icon">🔎</div>
+                <div class="electra-empty__title">No claim found</div>
+                <div class="electra-empty__text">We couldn't find a claim matching that number or VIN. Double-check and try again, or open a new request via the chat assistant.</div>
+            </div>
+        </template>
+    </div>
+</template>

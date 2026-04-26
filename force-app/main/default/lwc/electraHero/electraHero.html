@@ -1,0 +1,37 @@
+<template>
+    <section class="hero">
+        <div class="hero__inner">
+            <div class="hero__brand-row">
+                <div class="hero__logo">⚡ ELECTRA</div>
+                <div class="hero__tagline">Warranty Operations · Dealer Portal</div>
+            </div>
+
+            <h1 class="hero__headline">{headline}</h1>
+            <p class="hero__subheadline">{subheadline}</p>
+
+            <div class="hero__cta-row">
+                <button class="hero__cta hero__cta--primary" onclick={handlePrimaryCta}>
+                    {primaryCtaLabel}
+                </button>
+                <button class="hero__cta hero__cta--secondary" onclick={handleSecondaryCta}>
+                    {secondaryCtaLabel}
+                </button>
+            </div>
+
+            <div class="hero__stats">
+                <div class="hero__stat">
+                    <div class="hero__stat-value">&lt;30s</div>
+                    <div class="hero__stat-label">Auto-approval decision time</div>
+                </div>
+                <div class="hero__stat">
+                    <div class="hero__stat-value">3 ch</div>
+                    <div class="hero__stat-label">WhatsApp · Web · Slack</div>
+                </div>
+                <div class="hero__stat">
+                    <div class="hero__stat-value">24/7</div>
+                    <div class="hero__stat-label">ARIA always available</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</template>
