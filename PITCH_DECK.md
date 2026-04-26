@@ -202,37 +202,50 @@ Point at the channel. Card appears.
 Narrate: "Approver gets this the moment the claim lands. AI verdict, risk
 flags, dealer trust score — already summarized."
 
-### Beat 3 — Approver decides (Tab 2) — 90 sec
+### Beat 3 — Approver decides with PARTIAL APPROVAL (Tab 2) — 90 sec
 Type in Slack:
 ```
-@Electra Warranty Approver WC-XXX
+claim review of WC-XXX
 ```
-Wait for context card.
-```
-approve
-```
-Wait for rationale prompt.
-```
-Battery degradation confirmed per TSB-2025-03
-```
-Narrate: "Watch for the confirmation. Because this claim is above $1,500,
-a $2,000 unilateral confirmation is NOT triggered — but if it were $3,000,
-the agent would ask me to confirm. That's coded in Apex, not prompt
-discipline."
+Wait for context card. Point out the rich content — historical precedent,
+Data Cloud telemetry, AI verdict, dealer trust score, photo link.
 
-Confirmation appears: "✅ APPROVED."
+Then type:
+```
+approve at 1700 estimate is too high for new battery
+```
+
+Wait for the threshold confirm prompt:
+```
+yes
+```
+
+Confirmation appears: "✅ APPROVED. Approved at $1,700 (capped from $2,100)."
+
+Narrate: "Watch what happened — I capped the approval below the dealer's
+estimate. The system understood 'approve at 1700' as a partial-approval
+intent, captured my one-sentence rationale, and stored $1,700 on the
+standard Claim.ApprovedAmount field. The dealer's WhatsApp now shows the
+cap explicitly. Three real-world OEM workflows merged into a single
+conversational turn — partial approval, threshold confirmation,
+audit rationale. No form, no email."
 
 ### Beat 4 — Dealer notified (Tab 1 or Tab 3) — 45 sec
 Switch back to ARIA preview OR the Claim Chatter feed.
-Point at the approval message + PDF link.
+Point at the approval message + PDF link + repair guidance + cap message.
 Narrate: "Dealer sees approval immediately in the same WhatsApp thread.
-Auto-generated PDF authorization certificate attached — with verification
-code and QR to the claim record. No email, no delay."
+Auto-generated PDF authorization certificate. Live LLM repair guidance
+from Prompt Builder — battery-specific tips, BMS diagnostic reminder.
+Plus the approved-amount cap with reimbursement language. No email,
+no delay."
 
 ### Beat 5 — Show the Claim record (Tab 3) — 15 sec
-Open the Claim record. Show Chatter feed with audit trail.
-Narrate: "Every decision captured. Adjuster rationale, AI verdict, Slack
-thread reference. Full audit trail — Automotive Cloud standard."
+Open the Claim record. Show Chatter feed with audit trail + Files
+related list with the photo + PDF.
+Narrate: "Every decision captured. ApprovedAmount is $1,700 — different
+from the $2,100 estimate. Photo from the dealer attached. PDF authorization.
+Dealer trust score recalculated by the trigger. Full audit trail — Automotive
+Cloud standard."
 
 ## Timing
 Target 5 minutes. Practice until you can do it in under 4:30 without looking at notes.
@@ -284,30 +297,32 @@ Three of your 24 hours got reclaimed just like that."
 
 Simplified visual:
 ```
- Five deterministic gates on every approval:
+ Six deterministic gates on every approval:
  
- ①  context_loaded == true
- ②  claim_status ≠ Approved/Rejected
- ③  decision_rationale captured
- ④  cost ≤ $2,000 OR explicit confirmation
- ⑤  risk_flags clear of fraud/duplicate/velocity
+ ①  context_loaded == true             (agent gate)
+ ②  decision_rationale captured        (agent gate)
+ ③  goodwill_intent_confirmed for goodwill (agent gate)
+ ④  $2,000 threshold confirmation      (agent gate)
+ ⑤  Apex status guard: skip if already Approved/Rejected
+ ⑥  Apex phone validation: reject hallucinated session IDs
  
- All enforced in Apex available_when conditions.
- Even the LLM can't override them.
+ Defense in depth — gates at BOTH layers.
+ Even if the LLM hallucinates, Apex blocks the side-effect.
 ```
 
 ## Speaker notes (45 seconds)
 "This is where production-grade differs from demo-grade. We don't rely on
-prompt discipline to keep things safe. We rely on Apex.
+prompt discipline to keep things safe. We have defense in depth.
 
-Every approve action has five `available when` gates coded into the agent.
-The $2,000 threshold is a boolean variable the approver must explicitly
-confirm. Can't re-approve a closed claim. Can't skip the rationale — it's
-required for audit. If a risk flag is up, the agent refuses to auto-approve
-and recommends clarification.
+Six gates protect every approval. Four are at the agent layer — context
+must be loaded, rationale must be captured, partial-amount intent must be
+explicit, the $2,000 threshold needs verbal confirmation. Two more are at
+the Apex layer — we cannot regress an Approved claim back to Pending,
+and we cannot send WhatsApp to a hallucinated phone number. The LLM
+sometimes makes things up; the Apex catches it.
 
-If the LLM tries to take a shortcut — which they do — the Apex blocks the
-action entirely. Deterministic guardrails are the difference between
+If the LLM tries to take a shortcut — and they do — Apex blocks the side
+effect. Deterministic guardrails at both layers is the difference between
 'interesting demo' and 'deployable to production'."
 
 ## Timing
@@ -321,28 +336,36 @@ action entirely. Deterministic guardrails are the difference between
 ```
   AI IS EVERYWHERE IN THE SYSTEM
   
-  ○ Einstein Hyper Classifier → agent routing
-  ○ Apex rule engine         → eligibility verdict (today)
-  ● Prompt Builder           → dealer rejection letter (LIVE)
-  ◐ Prompt Builder           → claim risk verdict (Phase 2)
-  ◐ Data Cloud RAG           → similar-claim precedent (Phase 2)
-  ◐ Vision AI                → damage photo analysis (scaffolded)
+  ● Einstein Hyper Classifier  → agent topic routing
+  ● Apex rule engine           → coverage eligibility verdict
+  ● Prompt Builder template    → claim risk verdict (LIVE LLM)
+  ● Prompt Builder template    → repair guidance to dealer (LIVE LLM)
+  ● Prompt Builder template    → empathetic rejection messages (LIVE LLM)
+  ● Senior-adjuster persona    → "Read:", "I'd lean Approve, but..."
+  ◐ Vision AI                  → damage photo analysis (scaffolded)
+  ◐ Cross-OEM fraud detection  → Data Cloud federation (Phase 2)
   
+  Three live LLM templates via ConnectApi.EinsteinLLM.
   Graceful degradation at every layer.
-  Every decision tagged with its SOURCE for audit.
+  Every decision tagged with its SOURCE field for audit.
 ```
 
 ## Speaker notes (40 seconds)
 "Our AI isn't one model — it's an orchestrated stack. Einstein classifies
-intent to route the right agent. A rule-based engine handles coverage
-eligibility. Prompt Builder composes personalized empathetic WhatsApp
-rejection messages — that was live in the demo. The same pattern is
-scaffolded for claim risk verdicts and RAG over historical claim data
-for Phase 2.
+intent to route the right agent. Three Prompt Builder templates fire
+through ConnectApi.EinsteinLLM — risk verdict on every claim, personalized
+empathetic rejection messages, part-specific repair guidance for the dealer.
 
-Every AI call has a fallback. Every decision carries a `source` field —
-was this LLM output, rule-based, or cached? Auditors know exactly what ran.
-That's platform-correct AI, not magical thinking."
+Beyond the templates: we engineered the agent prompts themselves like
+production software. The approver agent doesn't just say 'pending review' —
+it gives a one-line read like 'classic battery degradation, trusted dealer,
+clean approve unless you spot something'. It cites historical precedent
+naturally. It surfaces TSB references for known patterns. Senior adjuster
+voice, not chatbot voice.
+
+Every AI call has a deterministic fallback. Every decision carries a
+`source` field — LLM output, rule-based, cached? Auditors know exactly
+what ran. That's platform-correct AI, not magical thinking."
 
 ## Timing
 40 seconds.
@@ -356,35 +379,47 @@ That's platform-correct AI, not magical thinking."
   DATA CLOUD FOUNDATION
   ─────────────────────────────────────────
   
-  Claim__dlm                ← live
-  DealerClaimVelocity       ← deployed, populate Phase 2
-  PartFailureRate__dlm      ← Phase 2
-  DealerPerformance__dlm    ← Phase 2
+  Vehicle_Telemetry__dlm    ← LIVE — telematics events ingested
+  RefreshTelemetrySignals   ← Apex bridge: DLM → Platform Event → Claim
+  Telemetry_Risk_Rollup_cio ← Calculated Insight aggregating per VIN
   
-  → feeds approver risk flags
-  → feeds RAG claim precedent
-  → feeds fraud pattern detection
+  ENRICHMENT FLOW
+  ─────────────────────────────────────────
+  
+  CSV stream → DLM → Apex aggregation → Platform Event
+                                             ↓
+                                  Trigger writes Claim.TelemetrySignal__c
+                                             ↓
+                            "3 fault codes, 1 off-network charge (last 30d)"
+                                  appears on the approver's Slack card
   
   PROJECTED IMPACT
   ─────────────────────────────────────────
   
   Email volume:        1,000/day → 0
-  Decision latency:    24-72 hr  → <2 hr median
+  Decision latency:    24-72 hr  → <2 hr median (auto: <30 sec)
   Auto-approved rate:  0%         → 30-40%
   Dealer self-serve:   0%         → 70% on status lookups
   Data completeness:   ~60%       → 100% (structured)
 ```
 
 ## Speaker notes (45 seconds)
-"Data Cloud is the memory layer that makes the AI smart. Our
-DealerClaimVelocity calculated insight is deployed. Data Stream activation
-is the production go-live step — for the hackathon we use a fallback risk
-flag from DealerTrustScore. Same output shape, ready to swap.
+"Data Cloud is doing real work today. We ingest a streaming telematics
+feed of vehicle fault codes and charging events into the Vehicle Telemetry
+DLM. An Apex bridge reads the DLM, aggregates per VIN over a 30-day window,
+and publishes Platform Events. A trigger writes the rolled-up signal to
+the Claim record — and it surfaces on the approver's Slack card as
+'3 fault codes, 1 off-network charge in the last 30 days, last event
+April 19'.
+
+That single line corroborates the dealer's narrative — or contradicts it
+when the telemetry doesn't match. Real-time enrichment from a separate
+data layer, into the human review experience.
 
 The projected metrics: zero inbound emails. Median decision under two
 hours versus 24 to 72. Thirty to forty percent of claims auto-resolved.
 Dealers stop calling to ask 'where is my claim' because they can self-
-serve the status. Data completeness jumps from patchy email parsing to
+serve via ARIA. Data completeness jumps from patchy email parsing to
 100% structured fields.
 
 Those are the numbers that make this a business case, not just a demo."
@@ -401,22 +436,29 @@ Those are the numbers that make this a business case, not just a demo."
  PHASE 1 — SHIPPED ✅
  ────────────────────
   ✓ Two-agent WhatsApp + Slack architecture
-  ✓ Auto-approve / auto-reject routing
-  ✓ $2,000 deterministic gate
-  ✓ Prompt Builder rejection letters
+  ✓ Auto-approve / auto-reject / queue routing
+  ✓ $2,000 deterministic gate + status guards
+  ✓ 3 LIVE LLM Prompt Builder templates via ConnectApi
+  ✓ Partial-approval support (cap at any amount)
+  ✓ Polished agent prompts (senior-adjuster persona)
   ✓ Branded PDF authorization certificates
-  ✓ Bilingual dealer intake (en / es)
-  ✓ 97-field Automotive Cloud claim model
+  ✓ Photo upload + public URL on Slack card
+  ✓ Data Cloud DLM → Apex bridge → Platform Event chain
+  ✓ Dealer Trust Score auto-update trigger
+  ✓ Historical precedent enrichment
+  ✓ Customer email/WhatsApp notification
+  ✓ 4-tile Warranty Ops dashboard
   ✓ Full audit trail via Chatter
 
-
- PHASE 2 — ARCHITECTED ⏳
+ PHASE 2 — ROADMAP ⏳
  ────────────────────
-  ○ Prompt Builder claim risk verdict
-  ○ Data Cloud full DMO activation
-  ○ RAG on historical claims
-  ○ Interactive Slack buttons (Block Kit)
-  ○ Vehicle Service History DMO
+  ○ Service Appointment auto-booking (WorkOrder)
+  ○ Product2 OEM parts catalog validation
+  ○ Cross-OEM fraud detection (Data Cloud federation)
+  ○ Predictive maintenance proactive outreach
+  ○ Warranty-to-upgrade conversion (Lead/Opportunity)
+  ○ Multilingual intake (Spanish, French, German)
+  ○ Real Vision LLM swap (replacing mocked analyzer)
 
   
               THANK YOU
