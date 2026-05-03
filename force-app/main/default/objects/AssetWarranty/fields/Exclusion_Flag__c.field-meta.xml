@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Exclusion_Flag__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Indicates whether special exclusions apply to this asset warranty.</description>
+    <label>Exclusion Flag</label>
+    <trackHistory>false</trackHistory>
+    <type>Checkbox</type>
+</CustomField>
