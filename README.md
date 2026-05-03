@@ -1,264 +1,155 @@
-<div align="center">
+# Electra Warranty Intelligence
 
-# ⚡ Electra Warranty Intelligence
-
-### AI-driven warranty prior-authorization for EV OEMs
-
-*Replacing the 1,000-claims-a-day email bottleneck with a Slack-native, dealer-portal Web Chat (+ WhatsApp), Data-Cloud-enriched approval system — built on Salesforce Automotive Cloud + Agentforce + Data Cloud.*
+AI-driven warranty prior-authorization platform for EV manufacturers, built on Salesforce Automotive Cloud, Agentforce, and Data Cloud.
 
 [![Salesforce](https://img.shields.io/badge/Salesforce-Automotive%20Cloud-00A1E0?logo=salesforce&logoColor=white)](https://www.salesforce.com/products/automotive-cloud/)
 [![Agentforce](https://img.shields.io/badge/Agentforce-Service%20%2B%20Employee-0070D2)](https://www.salesforce.com/agentforce/)
 [![Data Cloud](https://img.shields.io/badge/Data%20Cloud-Enabled-1798C1)](https://www.salesforce.com/data/)
-[![Apex API](https://img.shields.io/badge/Apex-API%20v60-2496ED)](#)
+[![Apex](https://img.shields.io/badge/Apex-API%20v60-2496ED)](#)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Hackathon-Submitted-brightgreen)](#)
-
-</div>
 
 ---
 
-## 📑 Table of Contents
+## Overview
 
-- [The Problem](#-the-problem)
-- [The Solution](#-the-solution)
-- [Architecture](#-architecture)
-- [Key Features](#-key-features)
-- [Tech Stack](#-tech-stack)
-- [Repository Layout](#-repository-layout)
-- [Setup for Reviewers](#-setup-for-reviewers)
-- [Demo Flow](#-demo-flow)
-- [Bugs Found & Fixed (QA log)](#-bugs-found--fixed-qa-log)
-- [Roadmap](#-roadmap)
-- [License](#-license)
+An EV manufacturer's dealer network submits thousands of warranty prior-authorization requests every day. The traditional pipeline — emailed PDF forms reviewed by a small team of OEM approvers — averages 24–72 hour turnaround and consumes most of the approvers' time on data entry rather than judgment.
 
----
+This project replaces that pipeline end to end. Dealers submit claims through a conversational agent embedded in their portal. Every claim is auto-classified at the moment of submission against coverage rules, an AI risk verdict, the dealer's trust score, and Data Cloud vehicle telemetry. Low-risk claims clear in under thirty seconds, uncovered claims are rejected with a personalized message, and everything else is enriched and routed to an OEM approver in Slack — where a second agent handles approve, reject, clarify, and goodwill workflows.
 
-## 🎯 The Problem
+## Architecture
 
-Electra Cars is an EV OEM with **300,000+ vehicles in service**. Their dealer network submits **1,000+ warranty prior-authorization requests per day** via email, manually triaged by just **3 OEM approvers**. Average decision time: **24–72 hours**. Approvers spend most of their time on data entry instead of judgment.
+```mermaid
+flowchart LR
+    Dealer["Dealer<br/>(service advisor)"]
+    ARIA["ARIA<br/>(Agentforce service agent)"]
+    Claim["Claim record<br/>(Automotive Cloud)"]
+    Engine["Coverage Engine<br/>+ AI Verdict<br/>(Prompt Builder)"]
+    Approver["Warranty Approver<br/>(Agentforce employee agent)"]
+    Slack["Slack<br/>approver channel"]
+    Outputs["PDF authorization · WhatsApp ·<br/>Customer notification · Trust-score recalc"]
 
-## ✨ The Solution
+    Dealer -- Web Chat / WhatsApp --> ARIA
+    ARIA --> Claim
+    Claim --> Engine
+    Engine -- "auto-approve<br/>or auto-reject" --> Outputs
+    Engine -- "queued for review" --> Slack
+    Slack --> Approver
+    Approver --> Outputs
 
-| | Before | After |
-| :--- | :--- | :--- |
-| **Intake channel** | Email + PDF forms | Dealer-portal Web Chat + WhatsApp (ARIA conversational agent) |
-| **Triage** | 1 claim at a time, manual | Auto-classified at submission via Coverage Engine + Prompt Builder verdict |
-| **Approval** | Inbox triage | Slack-native, rich context card |
-| **Auto-decision rate** | 0% | ~40% of claims (auto-approve / auto-reject) |
-| **Decision time (auto path)** | 24–72 hours | < 30 seconds |
-| **Approver capacity** | ~333 claims/day each | ~3× with auto-routing handling 40% of volume |
-
-## 🏗 Architecture
-
-```
-DEALER ─Web Chat─▶ ARIA ─▶ Claim record ─▶ Coverage Engine + AI Verdict (Prompt Builder)
-                                                       │
-                                               Auto-route layer
-                                               ┌────────┼────────┐
-                                               ▼        ▼        ▼
-                                         Auto-approve  Queue   Auto-reject
-                                               │        │        │
-                                               ▼        ▼        ▼
-                                        (PDF + WhatsApp) Slack   (Empathetic
-                                                        Card     rejection)
-                                                        │
-                                                        ▼
-                                              Approver Agent (Slack)
-                                                        │
-                                                        ▼
-                                              approve / reject / clarify / goodwill
-                                                        │
-                                                        ▼
-                                       PDF certificate · Dealer WhatsApp · Repair guidance
-                                       Customer notification · Dealer Trust Score recalc
+    classDef agent fill:#D9EAD3,stroke:#38761D,stroke-width:2px,color:#000;
+    classDef data fill:#FCE5CD,stroke:#B45F06,stroke-width:2px,color:#000;
+    class ARIA,Approver agent
+    class Claim,Engine,Outputs data
 ```
 
-Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md).
+Detailed system, sequence, and guardrail diagrams: [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md).
 
-## 🚀 Key Features
+## Capabilities
 
-### Dealer-side intake (ARIA — Agentforce Service Agent)
-- 💬 Dealer-portal Web Chat as the primary channel (WhatsApp also supported via Digital Engagement)
-- 🔍 Slot-filling for VIN, symptom, part, odometer, cost
-- 📷 Photo upload + Vision AI damage analysis
-- 🔁 Inline RFI handling (clarification requests flow back to ARIA)
+**Dealer-facing intake (ARIA)**
+- Conversational claim submission via the dealer portal Web Chat; WhatsApp also supported through Digital Engagement
+- Slot-filling for VIN, symptom, part category, odometer, and cost across five to seven turns
+- Photo upload with vision damage analysis
+- Inline RFI handling: clarification requests from the approver thread back into the same conversation
 
-### Auto-routing engine
-- **Coverage Engine** — AssetWarranty lookup
-- **AI Verdict** — Prompt Builder template (`Claim_Risk_Verdict`) returns structured JSON via `ConnectApi.EinsteinLLM`
-- **Smart routing** —
-  - Auto-approve: `Likely + ≤ $500 + confidence ≥ 90 + dealer trust ≥ 75`
-  - Auto-reject: `Eligibility = Not Covered`
-  - Queue otherwise for human review
+**Auto-routing engine**
+- Coverage Engine performs real-time AssetWarranty lookup
+- AI verdict from a live Prompt Builder template invoked via `ConnectApi.EinsteinLLM`, with a deterministic rule-based fallback if the model is unavailable
+- Routing logic: auto-approve when verdict is Likely *and* cost ≤ $500 *and* confidence ≥ 90 *and* dealer trust ≥ 75; auto-reject when coverage is Not Covered; queue otherwise
 
-### Approver agent (Slack-native)
-- 4 decision paths: **Approve** / **Reject** / **Clarify** / **Goodwill**
-- Rich context card with:
-  - 📊 Historical precedent ("Of 12 similar claims, 9 were approved")
-  - 📡 Vehicle telemetry (Data Cloud–sourced)
-  - 🤖 AI verdict + confidence
-  - 🏆 Live dealer trust score
-- **Golden Rule** pattern: tool call + confirmation in the same turn — no silent successes
-- Status-guard hardening prevents already-decided claims from being regressed
+**Approver workflow (Slack-native)**
+- Four decision paths: approve, reject, clarify, goodwill
+- Rich context card combining AI verdict, historical precedent ("Of 12 similar claims in the last 90 days, 9 were approved"), vehicle telemetry from Data Cloud, and live dealer trust score
+- Deterministic guardrails enforced in both the agent's reasoning and in Apex: status guards prevent re-decisioning of closed claims, an explicit confirmation gate sits in front of every approval over $2,000, and fraud / duplicate / velocity checks short-circuit before any DML
 
-### Post-decision automation
-- 📄 Branded PDF authorization certificate (Visualforce → ContentDistribution public URL)
-- 💬 Three-tier WhatsApp delivery — live push to the dealer's Messaging Session, fallback to Chatter audit, with retry handling
-- 🛠 LLM-generated **part-specific repair guidance** to dealer
-- 📧 Customer (vehicle owner) notified separately
-- 📈 Dealer Trust Score recalculated on every decision (auto-update trigger)
+**Post-decision automation**
+- Branded PDF authorization certificate via Visualforce → `ContentDistribution`, persisted on the Claim record
+- Three-tier dealer notification: live Messaging Session push, Chatter audit fallback, retry handling
+- Part-specific repair guidance generated on the fly by a second Prompt Builder template
+- Customer (vehicle owner) notified separately with the same PDF link
+- Dealer Trust Score recalculated by an Apex trigger on every decision
 
-### Operational metrics
-- 4-tile dashboard: auto-approval volume, queue depth, median decision time, per-dealer rate
-- Custom formula fields: `DecisionTimeHours__c`, `DecisionPath__c` (auto/manual/rejected)
+## Tech stack
 
-## 🛠 Tech Stack
-
-**Salesforce Products**
+**Salesforce products**
 - Automotive Cloud — Vehicle, Asset, AssetWarranty, Account, Contact
 - Agentforce — Service Agent (ARIA) + Employee Agent (Approver)
-- Prompt Builder — 3 active templates invoked via `ConnectApi.EinsteinLLM`, each with a rule-based fallback
-- Data Cloud — Streams, DLO, DMO, queryable from Apex SOQL
+- Prompt Builder — three active templates, source-controlled in `genAiPromptTemplates/`
+- Data Cloud — telemetry data stream, calculated insight, and Platform Event bridge into Salesforce
 - Digital Engagement — WhatsApp messaging
-- Slack for Salesforce — incoming webhook + Agentforce channel binding
-- Reports & Dashboards
+- Experience Cloud — dealer portal hosting the Web Chat
+- Slack for Salesforce — Agentforce channel binding and incoming webhook
 
-**Platform Features**
-- Apex (30+ warranty classes) · Apex Triggers (2) · Platform Events
-- Flow (orchestrator + subflows)
-- Visualforce (PDF rendering)
-- ContentVersion + ContentDistribution
-- Custom Objects, Custom Fields, Formula Fields
+**Platform features**
+- Apex (30+ warranty classes), Apex Triggers, Platform Events
+- Flow (orchestrator + record-triggered subflows)
+- Visualforce + ContentDistribution for branded PDF generation
+- Custom Objects, custom fields, formula fields, Lightning Web Components
 
 **APIs**
-- `ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate` — live LLM via Prompt Builder
+- `ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate` — live Prompt Builder invocation
 - `EventBus.publish` — Platform Events for Data Cloud → Claim writeback
 - `Invocable.Action` — agent action standard
 
-## 📂 Repository Layout
+## Repository layout
 
 ```
 force-app/main/default/
-├── aiAuthoringBundles/              # Agentforce agents
-│   ├── Warranty_Approver_Agent_3/   # Slack-facing approver
-│   └── Warranty_Dealer_Intake_Agentt_4/ # ARIA — dealer Web Chat
-├── classes/                          # 30+ Apex classes
-│   ├── ApproveWarrantyClaim.cls               # Approval invocable
-│   ├── RejectWarrantyClaim.cls                # Rejection invocable
-│   ├── RequestDealerClarification.cls         # RFI invocable
-│   ├── SubmitGoodwillReview.cls               # Goodwill invocable
-│   ├── RouteClaimToApproverQueue.cls          # Auto-routing
-│   ├── CoverageEngine.cls                     # AssetWarranty lookup
-│   ├── GetWarrantyClaimApprovalContext.cls    # Slack card builder
-│   ├── InvokeClaimVerdictPrompt.cls           # AI verdict (ConnectApi)
-│   ├── ComposeDealerRejectionMessage.cls      # Empathetic rejection
-│   ├── ComposeRepairGuidance.cls              # Post-approval tips
-│   ├── DealerTrustScoreService.cls            # Trust-score recalc
-│   ├── GenerateApprovalAuthorization.cls      # PDF + ContentDistribution
-│   ├── NotifyCustomerOfApproval.cls           # Customer WhatsApp
-│   ├── SendWhatsAppClaimDecision.cls          # Dealer WhatsApp (3-tier)
-│   ├── RefreshTelemetrySignals.cls            # Data Cloud → Platform Event bridge
-│   └── ...
-├── triggers/
-│   ├── ClaimStatusTrigger.trigger              # Trust-score recalc
-│   └── TelemetrySignalTrigger.trigger          # Data Cloud event handler
-├── flows/                            # Orchestrator + subflows
-├── objects/Claim/                    # Custom fields
-├── objects/TelemetrySignal__e/       # Platform Event for Data Cloud
-├── pages/                            # ApprovalAuthorizationPDF (Visualforce)
-├── permissionsets/                   # Agentforce_Permissions, Warranty_Claims_User
-├── profiles/                         # Admin profile patches
-└── promptTemplates/                  # (configured directly in Prompt Builder UI)
+├── aiAuthoringBundles/      Agentforce agents (ARIA + Approver)
+├── classes/                  Apex — service, invocable, trigger handlers
+├── triggers/                 Claim status + Platform Event triggers
+├── flows/                    Orchestrator + record-triggered flows
+├── genAiPromptTemplates/     Three live Prompt Builder templates
+├── lwc/                      Lightning Web Components for the dealer portal
+├── objects/                  Custom objects + field metadata
+├── pages/                    Visualforce PDF page
+├── permissionsets/           Agentforce + warranty user permissions
+└── calculatedInsights/       Data Cloud calculated insight definition
 
 scripts/
-├── apex/                             # 4 production-useful scripts
-│   ├── seed_demo_telemetry.apex      # Pre-demo telemetry seeder
-│   ├── prove_datacloud_chain.apex    # End-to-end Data Cloud verification
-│   ├── verify_prompt_templates.apex  # Prompt Template health check
-│   └── qa_full_suite.apex            # Integration smoke test (24 assertions)
-└── datacloud/
-    └── telematics-events.csv         # Sample telemetry data
+├── apex/                     Demo seeders + verification scripts
+└── datacloud/                Sample telemetry CSV
 ```
 
-## 📋 Setup for Reviewers
+## Setup
 
-### 1 — Deploy metadata
+### 1. Deploy metadata
 
 ```bash
 sf project deploy start -d force-app -o your-org-alias
 ```
 
-### 2 — Configure Prompt Templates (UI step)
+### 2. Activate Prompt Templates
 
-In **Setup → Prompt Builder**, create 3 Flex templates with single Object resource named `Claim`:
-- `Claim_Risk_Verdict` (returns JSON: recommendation/confidence/summary)
-- `Compose_Repair_Guidance_Message` (returns plain-text repair tips)
-- `Compose_Dealer_Rejection_Message` (returns empathetic rejection text)
+In Setup → Prompt Builder, activate the three deployed templates:
 
-Save → **Activate** each. Detailed walkthroughs in [`SUBMISSION.md`](SUBMISSION.md) §8.
+- `Claim_Risk_Verdict` — returns a JSON verdict (recommendation / confidence / summary) from the Claim context
+- `Compose_Dealer_Rejection_Message` — empathetic rejection composer
+- `Compose_Repair_Guidance_Message` — part-specific repair tips
 
-### 3 — Configure integrations (UI step)
+### 3. Configure integrations
 
-- **Slack** — install Slack for Salesforce, bind to `#all-electra-cars-approvers`
-- **WhatsApp** — Digital Engagement messaging channel
-- **Data Cloud** — upload `scripts/datacloud/telematics-events.csv` as a Data Stream
+- **Slack** — install Slack for Salesforce and bind the Approver agent to the `#all-electra-cars-approvers` channel
+- **WhatsApp** — configure a Digital Engagement messaging channel
+- **Data Cloud** — upload `scripts/datacloud/telematics-events.csv` as a data stream
 
-### 4 — Seed demo data
+### 4. Seed demo data and verify
 
 ```bash
-# Seed claims for demo
 sf apex run -f scripts/apex/seed_demo_telemetry.apex -o your-org-alias
-
-# Verify everything works
 sf apex run -f scripts/apex/qa_full_suite.apex -o your-org-alias
 sf apex run -f scripts/apex/verify_prompt_templates.apex -o your-org-alias
-sf apex run -f scripts/apex/prove_datacloud_chain.apex -o your-org-alias
 ```
 
-Expected: all assertions pass, all 3 templates show `OK LIVE`, Data Cloud chain published events to Claims.
+All assertions should pass and the three Prompt Templates should report `OK LIVE`.
 
-## 🎬 Demo Flow
+## Demo flow
 
-| # | Action | Expected outcome |
-|---|---|---|
-| 1 | Open ARIA in the dealer-portal Web Chat · "VIN ELXDEMOFRD0800000, battery dead" | ARIA collects symptom, odometer, cost; submits claim |
-| 2 | Watch Slack `#all-electra-cars-approvers` | Rich card appears: AI verdict + precedent + telemetry + trust score |
-| 3 | Reply `@Electra Approver approve <claim#> battery defect under coverage` | One-shot approval, PDF link, dealer + customer notified |
-| 4 | Submit a "Not Covered" claim | Auto-rejected; dealer gets empathetic LLM-generated rejection |
-| 5 | Open dashboard | 4 tiles update live with the day's decisions |
+1. Dealer opens the dealer portal Web Chat and reports a claim — for example, *"VIN ELXDEMOFRD0800000, battery dead at 12k miles."* ARIA collects the symptom, odometer, and cost, then submits the claim.
+2. The auto-router classifies the claim. Low-cost, high-confidence claims on trusted dealers auto-approve in under thirty seconds, with a PDF link delivered back to the dealer.
+3. Higher-value or borderline claims arrive in the approver Slack channel as a rich context card. The approver replies in natural language: *"approve WC-00042, fault codes corroborate the diagnosis."* The decision is committed, the PDF is generated, and the dealer is notified in the same conversation.
+4. Out-of-warranty claims are auto-rejected with a personalized rejection message composed by the dedicated Prompt Builder template — not a generic templated denial.
 
-5-minute video script with timing breakdown in [`SUBMISSION.md`](SUBMISSION.md) §8.
+## License
 
-## 🐛 Bugs Found & Fixed (QA log)
-
-| # | Bug | Resolution |
-|---|---|---|
-| 1 | Prompt Templates didn't fire live LLM (`Invocable.Action` rejected `generativeAi:generatePromptTemplateResponse`) | Migrated to `ConnectApi.EinsteinLLM` with `Map<String, Object>` input shape |
-| 2 | Goodwill misroute — typing "approve" sometimes called `SubmitGoodwillReview` | Removed broken `confirmed_above_threshold` gate; added explicit `goodwill_intent_confirmed` flag |
-| 3 | Goodwill submission failed with `INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST` | Fixed picklist value: `'Goodwill'` → `'Goodwill Exception'` |
-| 4 | Approved claims could be regressed to "Needs More Info" by an RFI call | Added Apex-level status guards on Approve/Reject/Clarify |
-| 5 | JSON parameter dump leaked to Slack channel | Set `require_user_confirmation: False` on decision actions |
-| 6 | Data Cloud Data Action UI didn't fire events automatically | Replaced with `RefreshTelemetrySignals` Apex (queries DLM directly) |
-
-Full QA report in commit history.
-
-## 🗺 Roadmap
-
-- **Service Appointment auto-booking** — auto-create `ServiceAppointment` after approval; customer gets appointment link via WhatsApp
-- **OEM parts catalog validation** — replace free-text part category with `Product2` lookup
-- **Cross-OEM fraud detection** — federate dealer service histories with partner data warehouses
-- **Predictive maintenance outreach** — Data Cloud calculated insights flag at-risk VINs before claim filing
-- **Warranty-to-upgrade conversion** — high-cost claims on aging vehicles auto-create Opportunity for trade-in consultation
-
-## 📜 License
-
-[MIT License](LICENSE) — original work submitted to the Salesforce Automotive Cloud Hackathon.
-No third-party intellectual property included.
-
----
-
-<div align="center">
-
-**Built with ⚡ for the Salesforce Automotive Cloud Hackathon**
-
-</div>
+Released under the [MIT License](LICENSE).
