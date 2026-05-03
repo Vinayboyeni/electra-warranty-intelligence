@@ -1,26 +1,30 @@
 <template>
-    <div class="electra-card">
+    <div class="electra-card" role="region" aria-labelledby="electra-card-title">
         <div class="electra-card__header">
-            <div class="electra-card__title">Track your warranty claim</div>
+            <div class="electra-card__eyebrow">Claim Tracker</div>
+            <div id="electra-card-title" class="electra-card__title">Track your warranty claim</div>
             <div class="electra-card__subtitle">Enter your claim number or VIN to see real-time status, decision rationale, and next steps.</div>
         </div>
 
-        <div class="electra-form">
+        <div class="electra-form" role="form" aria-label="Claim lookup">
             <div class="electra-form__row">
                 <label class="electra-label" for="claim">Claim number</label>
                 <input
                     id="claim"
                     type="text"
                     class="electra-input"
-                    placeholder="WC-00042"
+                    placeholder="e.g. WC-00042"
                     value={claimNumber}
                     onchange={handleClaimNumberChange}
                     oninput={handleClaimNumberChange}
                     onkeyup={handleKeyup}
                     maxlength="20"
+                    aria-describedby="claim-help"
+                    autocomplete="off"
+                    spellcheck="false"
                 />
             </div>
-            <div class="electra-form__divider">— or —</div>
+            <div class="electra-form__divider" aria-hidden="true"><span>or</span></div>
             <div class="electra-form__row">
                 <label class="electra-label" for="vin">VIN</label>
                 <input
@@ -33,21 +37,41 @@
                     oninput={handleVinChange}
                     onkeyup={handleKeyup}
                     maxlength="17"
+                    autocomplete="off"
+                    spellcheck="false"
                 />
             </div>
 
             <div class="electra-form__actions">
-                <button class="electra-button electra-button--primary" onclick={handleLookup} disabled={isLoading}>
-                    <template if:true={isLoading}>Looking up…</template>
-                    <template if:false={isLoading}>Look up status</template>
+                <button class="electra-button electra-button--primary" onclick={handleLookup} disabled={isLoading} type="button">
+                    <template if:true={isLoading}>
+                        <span class="electra-spinner" aria-hidden="true"></span>
+                        Looking up…
+                    </template>
+                    <template if:false={isLoading}>
+                        Look up status
+                        <span class="electra-button-arrow" aria-hidden="true">→</span>
+                    </template>
                 </button>
                 <button class="electra-button electra-button--ghost" onclick={handleReset} type="button">Clear</button>
             </div>
 
             <template if:true={errorMessage}>
-                <div class="electra-error">{errorMessage}</div>
+                <div class="electra-error" role="alert">
+                    <span class="electra-error__icon" aria-hidden="true">⚠️</span>
+                    <span>{errorMessage}</span>
+                </div>
             </template>
         </div>
+
+        <template if:true={isLoading}>
+            <div class="electra-skeleton" aria-hidden="true">
+                <div class="electra-skeleton__row electra-skeleton__row--title"></div>
+                <div class="electra-skeleton__row"></div>
+                <div class="electra-skeleton__row"></div>
+                <div class="electra-skeleton__row electra-skeleton__row--short"></div>
+            </div>
+        </template>
 
         <template if:true={hasResult}>
             <div class="electra-result">
@@ -96,14 +120,123 @@
                         <div class="electra-result__rationale-text">"{result.approverComment}"</div>
                     </div>
                 </template>
+
+                <template if:true={result.isAwaitingResponse}>
+                    <div class="electra-clarify">
+                        <div class="electra-clarify__header">
+                            <div class="electra-clarify__icon">ℹ️</div>
+                            <div class="electra-clarify__heading">OEM approver requested more information</div>
+                        </div>
+                        <div class="electra-clarify__question">
+                            <div class="electra-clarify__question-label">Approver question</div>
+                            <div class="electra-clarify__question-text">"{result.clarificationQuestion}"</div>
+                        </div>
+
+                        <template if:false={responseSubmitted}>
+                            <label class="electra-label" for="dealerResponse">Your response</label>
+                            <textarea
+                                id="dealerResponse"
+                                class="electra-textarea"
+                                placeholder="Type your answer to the approver here…"
+                                onchange={handleDealerResponseChange}
+                                oninput={handleDealerResponseChange}
+                                rows="4"
+                                maxlength="2000"
+                                disabled={isSubmittingResponse}
+                            ></textarea>
+
+                            <div class="electra-clarify__actions">
+                                <button
+                                    class="electra-button electra-button--primary"
+                                    onclick={handleSubmitResponse}
+                                    disabled={isSubmittingResponse}
+                                    type="button"
+                                >
+                                    <template if:true={isSubmittingResponse}>Sending response…</template>
+                                    <template if:false={isSubmittingResponse}>Send to approver</template>
+                                </button>
+                            </div>
+
+                            <template if:true={responseError}>
+                                <div class="electra-error">{responseError}</div>
+                            </template>
+                        </template>
+
+                        <template if:true={responseSubmitted}>
+                            <div class="electra-clarify__success">
+                                <div class="electra-clarify__success-icon">✅</div>
+                                <div class="electra-clarify__success-text">{responseMessage}</div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={hasDealerResponseAlreadyOnFile}>
+                    <div class="electra-result__rationale">
+                        <div class="electra-result__rationale-label">Your previous response</div>
+                        <div class="electra-result__rationale-text">"{result.dealerResponseSummary}"</div>
+                    </div>
+                </template>
+
+                <div class="electra-files">
+                    <div class="electra-files__header">
+                        <div class="electra-files__heading">Supporting documents</div>
+                        <div class="electra-files__subtitle">Upload photos or PDFs (e.g., damage shots, repair invoice). Files are attached directly to your claim.</div>
+                    </div>
+
+                    <lightning-file-upload
+                        label="Upload supporting document"
+                        name="claimFileUpload"
+                        accept={acceptedFormats}
+                        record-id={result.claimId}
+                        onuploadfinished={handleUploadFinished}
+                        multiple>
+                    </lightning-file-upload>
+
+                    <template if:true={uploadFeedback}>
+                        <div class="electra-files__feedback">{uploadFeedback}</div>
+                    </template>
+
+                    <template if:true={hasAttachedFiles}>
+                        <div class="electra-files__list">
+                            <div class="electra-files__list-label">Files on this claim</div>
+                            <template for:each={attachedFiles} for:item="file">
+                                <div key={file.contentDocumentId} class="electra-files__item">
+                                    <div class="electra-files__item-icon">
+                                        <template if:true={file.isImage}>🖼️</template>
+                                        <template if:false={file.isImage}>📄</template>
+                                    </div>
+                                    <div class="electra-files__item-meta">
+                                        <a href={file.downloadUrl} target="_blank" rel="noopener" class="electra-files__item-title">{file.title}</a>
+                                        <div class="electra-files__item-sub">{file.fileExtension}</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template if:true={noAttachedFiles}>
+                        <div class="electra-files__empty">No documents attached yet.</div>
+                    </template>
+                </div>
             </div>
         </template>
 
         <template if:true={noResult}>
-            <div class="electra-empty">
-                <div class="electra-empty__icon">🔎</div>
+            <div class="electra-empty" role="status">
+                <div class="electra-empty__icon" aria-hidden="true">🔎</div>
                 <div class="electra-empty__title">No claim found</div>
-                <div class="electra-empty__text">We couldn't find a claim matching that number or VIN. Double-check and try again, or open a new request via the chat assistant.</div>
+                <div class="electra-empty__text">We couldn't find a claim matching that number or VIN. Double-check and try again, or start a new request with ARIA in the chat.</div>
+                <div class="electra-empty__hints">
+                    <span class="electra-empty__hint">
+                        <span aria-hidden="true">💡</span>
+                        Claim numbers look like <code>WC-XXXXX</code>
+                    </span>
+                    <span class="electra-empty__hint">
+                        <span aria-hidden="true">🚗</span>
+                        VINs are exactly 17 characters
+                    </span>
+                </div>
             </div>
         </template>
     </div>

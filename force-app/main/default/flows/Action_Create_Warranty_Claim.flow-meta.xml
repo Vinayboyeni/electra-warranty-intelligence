@@ -361,6 +361,12 @@
             </value>
         </inputAssignments>
         <inputAssignments>
+            <field>MessagingSessionId__c</field>
+            <value>
+                <elementReference>messagingSessionId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
             <field>Name</field>
             <value>
                 <elementReference>formulaClaimName</elementReference>
@@ -370,6 +376,12 @@
             <field>Odometer__c</field>
             <value>
                 <elementReference>odometer</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>PartCategory__c</field>
+            <value>
+                <elementReference>partCategory</elementReference>
             </value>
         </inputAssignments>
         <inputAssignments>
@@ -400,12 +412,6 @@
             <field>Summary</field>
             <value>
                 <elementReference>formulaSummary</elementReference>
-            </value>
-        </inputAssignments>
-        <inputAssignments>
-            <field>PartCategory__c</field>
-            <value>
-                <elementReference>partCategory</elementReference>
             </value>
         </inputAssignments>
         <inputAssignments>
@@ -616,6 +622,13 @@
     <variables>
         <name>faultDate</name>
         <dataType>Date</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>messagingSessionId</name>
+        <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>

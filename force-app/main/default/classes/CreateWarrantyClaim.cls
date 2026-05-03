@@ -18,6 +18,7 @@ public without sharing class CreateWarrantyClaim {
         @AuraEnabled public Decimal requestedAmount;
         @AuraEnabled public Date faultDate;
         @AuraEnabled public String srtJustification;
+        @AuraEnabled public String messagingSessionId;
     }
     public class Summary {
         @AuraEnabled public Id claimId;
@@ -89,7 +90,12 @@ public without sharing class CreateWarrantyClaim {
         claim.Name = 'Warranty Claim: ' + req.vin;
         claim.Status = 'Submitted';
         claim.DealerWhatsAppNumber__c = req.dealerWhatsAppNumber;
-        claim.SubmissionChannel__c = String.isBlank(req.channel) ? 'WhatsApp' : req.channel;
+        claim.SubmissionChannel__c = String.isBlank(req.channel) ? 'Web' : req.channel;
+        // Capture the session Id so post-creation actions (chat-attachment
+        // linking, dealer status push) can find the original conversation.
+        if (String.isNotBlank(req.messagingSessionId)) {
+            claim.MessagingSessionId__c = req.messagingSessionId;
+        }
         
         // Setup AI Fields
         claim.AI_Summary__c = eval != null ? eval.rationale : null;
@@ -218,6 +224,7 @@ public without sharing class CreateWarrantyClaim {
             inx.faultDate = i.faultDate.date();
         }
         inx.srtJustification = i.srtJustification;
+        inx.messagingSessionId = i.messagingSessionId;
         return inx;
     }
 }

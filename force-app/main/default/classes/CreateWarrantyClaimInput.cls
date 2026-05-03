@@ -82,4 +82,7 @@ public with sharing class CreateWarrantyClaimInput {
 
     @InvocableVariable(label='SRT Justification' description='Dealer provided justification for repair costs above SRT baseline.')
     public String srtJustification;
+
+    @InvocableVariable(label='Messaging Session Id' description='Live agent / Embedded Service messaging session Id (15- or 18-char). Captured on the Claim so post-creation chat actions (photo linking, status push) can pivot back to the original conversation.')
+    public String messagingSessionId;
 }
