@@ -17,7 +17,7 @@ Electra Cars is an EV OEM with 300,000+ vehicles in service. Their dealer networ
 
 **Electra Warranty Intelligence** replaces the email pipeline with an end-to-end Agentforce + Automotive Cloud + Data Cloud system that:
 
-- **Lets dealers submit claims through ARIA**, an Agentforce service agent that walks them through intake on WhatsApp or web chat — extracting VIN, symptom, part category, odometer, and cost in 5-7 conversational turns. Photos and dealer-supplied diagnoses are accepted.
+- **Lets dealers submit claims through ARIA**, an Agentforce service agent that walks them through intake on the dealer-portal Web Chat (WhatsApp also supported via Digital Engagement) — extracting VIN, symptom, part category, odometer, and cost in 5-7 conversational turns. Photos and dealer-supplied diagnoses are accepted.
 
 - **Auto-classifies every claim** the moment it's submitted. The Coverage Engine queries AssetWarranty for active coverage. A Prompt Builder template (`Claim_Risk_Verdict`, gpt-4o-mini) returns a structured JSON verdict — Approve / Reject / Needs Clarification — with confidence and rationale. A routing layer auto-approves low-cost, high-confidence, trusted-dealer claims (~40% of volume), auto-rejects clear non-coverage cases, and queues the rest for human review.
 
@@ -38,7 +38,7 @@ The system is engineered for graceful degradation. Every Prompt Template has a r
 ## 3. Features & Functionality
 
 ### Dealer-facing (ARIA — Agentforce Service Agent)
-- WhatsApp + Web Chat intake (Digital Engagement)
+- Dealer-portal Web Chat as the primary intake channel; WhatsApp also supported via Digital Engagement
 - English-language conversational intake
 - Conversational slot-filling: VIN, symptom, part category, odometer, cost, photos
 - Inline RFI handling (clarification requests from approver flow back to ARIA)
@@ -89,15 +89,14 @@ The system is engineered for graceful degradation. Every Prompt Template has a r
 ### Salesforce Products
 - **Salesforce Automotive Cloud** — Vehicle, Asset, AssetWarranty, Account, Contact (core data architecture)
 - **Agentforce** — `AgentforceServiceAgent` (ARIA, dealer-facing) + `AgentforceEmployeeAgent` (Slack approver)
-- **Einstein Hyper Classifier** — agent topic routing
-- **Prompt Builder** — 3 active templates with input resources and rule-based fallbacks
+- **Prompt Builder** — 3 active templates invoked from Apex via `ConnectApi.EinsteinLLM`, each with a deterministic rule-based fallback. The default Einstein reasoning model (`sfdc_ai__DefaultEinsteinHyperClassifier`) powers both Agentforce agents.
 - **Data Cloud** — Data Streams, DLO, DMO, Calculated Insights, Data Actions, Platform Event target
 - **Digital Engagement** — WhatsApp messaging via MessagingSession + MessagingEndUser
 - **Slack for Salesforce** — incoming webhook + Agentforce Slack channel binding
 - **Reports & Dashboards** — Lightning Reports, Dashboard with conditional formatting
 
 ### Salesforce Platform Features
-- **Apex** — 15+ classes (service, invocable, trigger handler, prompt invokers)
+- **Apex** — 30+ warranty classes (service, invocable, trigger handler, prompt invokers)
 - **Apex Triggers** — `ClaimStatusTrigger`, `TelemetrySignalTrigger`
 - **Platform Events** — `TelemetrySignal__e` (4 fields)
 - **Flow** — `Action_Create_Warranty_Claim` orchestrator + 4 subflows
@@ -107,7 +106,7 @@ The system is engineered for graceful degradation. Every Prompt Template has a r
 - **Custom Fields** — 20+ across Claim, Account, Vehicle, including formula fields
 
 ### APIs / Standard Actions
-- **Invocable.Action** (`generativeAi:generatePromptTemplateResponse`) — Prompt Builder invocation
+- **`ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate`** — live Prompt Builder invocation (replaced the older `Invocable.Action` route after a migration documented in the bug log)
 - **Invocable.Action** (`messaging:sendMessage`) — WhatsApp message push
 - **EventBus.publish** — Platform Event firing
 - **PageReference.getContentAsPDF** — PDF rendering
@@ -139,13 +138,9 @@ Additional ergonomic improvements: a Lightning Web Component approver mobile vie
 
 ## 6. Admin Login Credentials (paste into the credentials field)
 
-```
-Org alias: vscodeOrg
-Login URL: https://orgfarm-d6e94e6165.my.salesforce.com
-Username: epic.0aed1f3b6e4c@orgfarm.salesforce.com
-Password: [provide your org password]
-Security Token: [include if required for API access]
-```
+> Org credentials (login URL, username, password) are provided privately via the
+> hackathon submission form, **not** in this public repository. Please refer to
+> the credentials field of the submission form for access.
 
 Relevant pages for judging (link from inside the org after login):
 
@@ -161,17 +156,15 @@ Relevant pages for judging (link from inside the org after login):
 
 ## 7. GitHub Repository
 
-```
-[Repository URL — paste after pushing]
-```
+<https://github.com/Vinayboyeni/electra-warranty-intelligence>
 
 The repo includes:
-- `force-app/` — all Apex, Flow, VF page, Platform Event, custom field, and agent metadata
-- `scripts/apex/` — diagnostic and seed scripts
+- `force-app/` — all Apex, Flow, Visualforce, Platform Event, custom field, LWC, and Agentforce metadata
+- `scripts/apex/` — diagnostic and seed scripts (one-shot anonymous Apex)
 - `scripts/datacloud/telematics-events.csv` — Data Cloud sample data
-- `PITCH_DECK.md` — pitch deck with speaker notes
-- `ARCHITECTURE_DIAGRAMS.md` — Mermaid system diagrams
+- `ARCHITECTURE_DIAGRAMS.md` — Mermaid system, sequence, and guardrail diagrams
 - `SUBMISSION.md` — this file
+- `README.md` — project overview, setup, and demo flow
 
 ---
 
@@ -180,7 +173,7 @@ The repo includes:
 | Time | Scene | Narration |
 |---|---|---|
 | 0:00-0:25 | **Opening — the problem** Show inbox screenshot or text overlay: "Electra Cars: 1,000+ warranty claims/day, 3 approvers, email-based" | "Electra Cars receives over a thousand warranty prior-authorization requests every day. Three approvers handle the queue manually via email. Each claim takes 24 to 72 hours. Today I'll show you how we collapsed that to under 30 seconds for the majority of claims." |
-| 0:25-1:10 | **Dealer intake — ARIA on WhatsApp** Open WhatsApp / Agentforce preview. Walk through 5-turn conversation: dealer reports battery issue, ARIA asks for VIN, odometer, photo. | "A dealer opens WhatsApp. Our intake agent ARIA — built on Agentforce — walks them through a structured conversation. ARIA accepts photos and submits to a Claim record on Automotive Cloud automatically. No more email." |
+| 0:25-1:10 | **Dealer intake — ARIA on the Web Chat** Open the Experience Cloud dealer portal. Walk through a 5-turn conversation: dealer reports battery issue, ARIA asks for VIN, odometer, photo. | "A dealer opens the Electra dealer portal and starts a chat. Our intake agent ARIA — built on Agentforce — walks them through a structured conversation. ARIA accepts photos and submits to a Claim record on Automotive Cloud automatically. No more email." |
 | 1:10-1:40 | **Auto-approve path** Show pre-prepared low-cost claim that's auto-approved. Pull up the dealer's WhatsApp showing approval + PDF link. | "Watch what happens when ARIA submits this claim. It's a $180 brake replacement on a trusted dealer's vehicle. The Coverage Engine confirms warranty. Our Prompt Builder template returns a 95% confidence verdict. Routing logic auto-approves. The dealer receives a branded PDF authorization on WhatsApp 30 seconds later. Zero human touch." |
 | 1:40-2:30 | **Slack approver path — the differentiator** Switch to Slack. Show `<!here>` ping with the rich context card. Highlight: AI verdict, historical precedent, Data Cloud telemetry signal, dealer trust score. | "For higher-value claims, we route to the approver pod in Slack. Look at this card — every signal an approver needs in one glance: AI verdict, historical precedent — *of 12 similar claims, 9 were approved* — vehicle telemetry from Data Cloud showing 3 fault codes appeared a week before the claim, and the dealer trust score updated live by our Apex trigger. The approver doesn't dig through emails. They reply: `approve CL-00123, fault codes corroborate the dealer's diagnosis`. Done." |
 | 2:30-3:00 | **Post-approval automation** Show the dealer WhatsApp: approval confirmation + PDF link + AI-generated repair guidance bullets. | "The approval triggers a chain: branded PDF, persistent URL on the Claim record, dealer WhatsApp with the document, post-approval repair guidance generated by another Prompt Builder template — battery-specific tips for this claim — and finally a WhatsApp to the end customer with the same PDF. The customer doesn't have to call." |

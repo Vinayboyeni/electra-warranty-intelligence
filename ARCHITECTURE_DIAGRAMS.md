@@ -1,9 +1,8 @@
-# Electra Cars Warranty Claim Agent — Architecture Diagrams
+# Electra Warranty Intelligence — Architecture Diagrams
 
-Two Mermaid diagrams for your pitch deck and documentation. Render natively in
-GitHub README, Notion, Confluence, and most modern Markdown viewers. To export
-as PNG for slides, use [mermaid.live](https://mermaid.live) — paste the code,
-download as SVG or PNG.
+Three Mermaid diagrams illustrating the system: a one-page architecture
+overview, the happy-path approval sequence, and the deterministic-guardrail
+flow used by the approver agent. All diagrams render natively in GitHub.
 
 ---
 
@@ -18,6 +17,7 @@ flowchart TB
     end
 
     subgraph Channels["📱 CHANNELS"]
+        WebChat["Dealer-portal Web Chat<br/>(Experience Cloud)"]
         WA["WhatsApp<br/>(Digital Engagement)"]
         Slack["Slack<br/>(Slack for Salesforce)"]
     end
@@ -49,9 +49,9 @@ flowchart TB
     end
 
     subgraph AI["🧠 AI LAYER"]
-        EinsteinRouter["Einstein<br/>Hyper Classifier<br/>(agent routing)"]
-        Prompt["Prompt Builder<br/>Claim_Risk_Verdict<br/>(Phase 2 — scaffolded)"]
-        DataCloud["Data Cloud<br/>DealerClaimVelocity<br/>Calculated Insight"]
+        EinsteinRouter["Einstein Reasoning Model<br/>(default Agentforce LLM)"]
+        Prompt["Prompt Builder<br/>3 active templates<br/>(via ConnectApi.EinsteinLLM)"]
+        DataCloud["Data Cloud<br/>Telemetry Calculated Insight<br/>+ Platform Event bridge"]
     end
 
     subgraph Webhooks["🔔 NOTIFICATIONS"]
@@ -59,8 +59,10 @@ flowchart TB
         WAOut["SendWhatsAppRFINotification<br/>SendWhatsAppClaimDecision"]
     end
 
+    Dealer --> WebChat
     Dealer --> WA
     Approver --> Slack
+    WebChat <-.-> ARIA
     WA <-.-> ARIA
     Slack <-.-> Approv
 
@@ -82,10 +84,10 @@ flowchart TB
     Approv --> WAOut
     WAOut --> WA
 
-    EinsteinRouter -.routes.-> ARIA
-    EinsteinRouter -.routes.-> Approv
-    Prompt -.future verdict.-> Claim
-    DataCloud -.risk flags.-> Approv
+    EinsteinRouter -.powers reasoning.-> ARIA
+    EinsteinRouter -.powers reasoning.-> Approv
+    Prompt -.live verdict + composers.-> Claim
+    DataCloud -.telemetry signals.-> Approv
 
     Claim --- Veh
     Claim --- Asset
@@ -105,7 +107,7 @@ flowchart TB
     classDef notif fill:#CFE2F3,stroke:#1155CC,stroke-width:2px,color:#000
 
     class Dealer,Approver,Policy persona
-    class WA,Slack channel
+    class WebChat,WA,Slack channel
     class ARIA,Approv agent
     class Claim,Veh,Asset,AW,Acct,MS,FI,SRT data
     class CreateFlow,CovEng,RouteQ,SlackFlow,SRTVal logic
@@ -120,7 +122,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     autonumber
-    participant D as 🧑‍🔧 Dealer (WhatsApp)
+    participant D as 🧑‍🔧 Dealer (Web Chat)
     participant A as 🤖 ARIA Agent
     participant SF as 🗄️ Automotive Cloud
     participant Route as ⚙️ RouteClaim<br/>ToApproverQueue
@@ -157,7 +159,7 @@ sequenceDiagram
         Appr->>SF: ApproveWarrantyClaim<br/>(writes DecisionRationale)
         SF-->>Appr: Status = Approved
         Appr-->>OEM: ✅ APPROVED confirmation
-        SF->>D: ✅ Dealer notified via WhatsApp<br/>(same thread)
+        SF->>D: ✅ Dealer notified back in the same thread<br/>(plus WhatsApp follow-up)
     end
 
     Note over D,OEM: One Claim record, one conversation,<br/>bidirectional lifecycle
@@ -201,31 +203,8 @@ flowchart LR
 
 ---
 
-## How To Use These in Your Pitch Deck
+## Notes on the diagrams
 
-### Slide 3 (Architecture Overview)
-- Paste Diagram 1
-- Talking track: *"Two agents, three channels, one Claim record as source of truth. Automotive Cloud as system of record, Agentforce for conversational AI, standard Slack-for-Salesforce bridge for OEM review, Digital Engagement for dealer WhatsApp. No custom middleware."*
-
-### Slide 5 or 6 (Demo Replay Slide)
-- Paste Diagram 2 (sequence)
-- Talking track: *"Here's what just happened in the demo — claim submitted, evaluated, auto-routed, approved, dealer notified. Every step captures rationale for audit. End-to-end in under 2 minutes."*
-
-### Slide 7 (Trust & Safety)
-- Paste Diagram 3
-- Talking track: *"Five `available when` gates in Apex, not prompt discipline. Even the AI can't override the $2,000 threshold, can't re-approve a decided claim, can't skip the fraud check. Deterministic guardrails are the difference between hackathon demo and production-ready."*
-
----
-
-## To Export As Images
-
-1. Go to https://mermaid.live
-2. Paste any diagram block (without the ```` ```mermaid ```` fence)
-3. **Export** → PNG or SVG
-4. Drop into your slide
-
-Or using mermaid-cli:
-```bash
-npm install -g @mermaid-js/mermaid-cli
-mmdc -i diagram.mmd -o diagram.png -b transparent -w 2400 -H 1800
-```
+- **Diagram 1** is the one-page overview: two agents, three channels, one Claim record as the system of record. No custom middleware between Salesforce products — Automotive Cloud holds the data, Agentforce holds the conversation, Data Cloud holds the telemetry signal.
+- **Diagram 2** traces the happy path through auto-approve, auto-reject, and the human-in-the-loop Slack approval branch. Every step is captured on the Claim record for audit.
+- **Diagram 3** shows the five deterministic gates the approver agent runs through before any `ApproveWarrantyClaim` Apex call fires. The gates are enforced both in the agent's reasoning and in Apex, so the AI cannot override the $2,000 threshold, re-approve a decided claim, or skip the fraud check.

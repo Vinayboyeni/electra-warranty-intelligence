@@ -78,8 +78,7 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 ## 🚀 Key Features
 
 ### Dealer-side intake (ARIA — Agentforce Service Agent)
-- 💬 Conversational dealer-portal Web Chat (WhatsApp also supported via Digital Engagement)
-- 💬 Conversational, English-language
+- 💬 Dealer-portal Web Chat as the primary channel (WhatsApp also supported via Digital Engagement)
 - 🔍 Slot-filling for VIN, symptom, part, odometer, cost
 - 📷 Photo upload + Vision AI damage analysis
 - 🔁 Inline RFI handling (clarification requests flow back to ARIA)
@@ -104,7 +103,7 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 
 ### Post-decision automation
 - 📄 Branded PDF authorization certificate (Visualforce → ContentDistribution public URL)
-- 💬 Three-tier WhatsApp delivery (live push → Chatter audit → guaranteed)
+- 💬 Three-tier WhatsApp delivery — live push to the dealer's Messaging Session, fallback to Chatter audit, with retry handling
 - 🛠 LLM-generated **part-specific repair guidance** to dealer
 - 📧 Customer (vehicle owner) notified separately
 - 📈 Dealer Trust Score recalculated on every decision (auto-update trigger)
@@ -118,23 +117,22 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 **Salesforce Products**
 - Automotive Cloud — Vehicle, Asset, AssetWarranty, Account, Contact
 - Agentforce — Service Agent (ARIA) + Employee Agent (Approver)
-- Einstein Hyper Classifier — agent topic routing
-- Prompt Builder — 3 active templates with rule-based fallbacks
+- Prompt Builder — 3 active templates invoked via `ConnectApi.EinsteinLLM`, each with a rule-based fallback
 - Data Cloud — Streams, DLO, DMO, queryable from Apex SOQL
 - Digital Engagement — WhatsApp messaging
 - Slack for Salesforce — incoming webhook + Agentforce channel binding
 - Reports & Dashboards
 
 **Platform Features**
-- Apex (15+ classes) · Apex Triggers (2) · Platform Events
+- Apex (30+ warranty classes) · Apex Triggers (2) · Platform Events
 - Flow (orchestrator + subflows)
 - Visualforce (PDF rendering)
 - ContentVersion + ContentDistribution
 - Custom Objects, Custom Fields, Formula Fields
 
 **APIs**
-- `ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate` — live LLM
-- `EventBus.publish` — Platform Events
+- `ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate` — live LLM via Prompt Builder
+- `EventBus.publish` — Platform Events for Data Cloud → Claim writeback
 - `Invocable.Action` — agent action standard
 
 ## 📂 Repository Layout
