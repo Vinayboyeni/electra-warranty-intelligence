@@ -12,7 +12,7 @@
  * This eliminates the most common dealer repeat contact reason:
  * "Where is my claim?" — reducing inbound call volume significantly.
  */
-public with sharing class GetClaimStatus {
+public without sharing class GetClaimStatus {
 
     public class Input {
         @InvocableVariable(label='Claim Number' description='Human-readable claim number (e.g., CLM-00042). Used when dealer knows their specific claim number.' required=false)
@@ -43,11 +43,14 @@ public with sharing class GetClaimStatus {
 
         @InvocableVariable(label='Claim Found' description='True if a matching claim was found.')
         public Boolean claimFound;
+
+        @InvocableVariable(label='Clarification Question' description='When status is Needs More Info, contains the OEM approver\'s actual question for the dealer to answer. Empty otherwise.')
+        public String clarificationQuestion;
     }
 
     @InvocableMethod(
         label='Get Claim Status'
-        description='Returns the current status, approver, SLA deadline, and latest comment for an existing warranty claim. Used by dealers to self-serve claim follow-ups via WhatsApp.'
+        description='Returns the current status, approver, SLA deadline, and latest comment for an existing warranty claim. Used by dealers to self-serve claim follow-ups via the dealer chat agent or the Track Your Claim portal page.'
     )
     public static List<Result> getStatus(List<Input> inputs) {
         List<Result> results = new List<Result>();
@@ -63,7 +66,7 @@ public with sharing class GetClaimStatus {
             if (String.isNotBlank(inp.claimNumber)) {
                 List<Claim> byNumber = [
                     SELECT Id, Name, Status, OwnerId, Owner.Name, CreatedDate,
-                           EligibilityRationale__c, SLA_Due_Date__c
+                           EligibilityRationale__c, SLA_Due_Date__c, ClarificationRequest__c
                     FROM Claim
                     WHERE Name = :inp.claimNumber
                     LIMIT 1
@@ -134,6 +137,10 @@ public with sharing class GetClaimStatus {
             res.approverComment = String.isNotBlank(matchedClaim.EligibilityRationale__c)
                 ? matchedClaim.EligibilityRationale__c
                 : 'No comments yet from the approver.';
+            res.clarificationQuestion = ('Needs More Info'.equalsIgnoreCase(matchedClaim.Status)
+                && String.isNotBlank(matchedClaim.ClarificationRequest__c))
+                ? matchedClaim.ClarificationRequest__c
+                : '';
             res.nextStep = deriveNextStep(matchedClaim.Status);
 
             results.add(res);

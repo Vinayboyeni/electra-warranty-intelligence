@@ -4,7 +4,7 @@
         <name>Send_WhatsApp_RFI</name>
         <label>Send WhatsApp RFI to Dealer</label>
         <locationX>176</locationX>
-        <locationY>134</locationY>
+        <locationY>371</locationY>
         <actionName>SendWhatsAppRFINotification</actionName>
         <actionType>apex</actionType>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
@@ -15,6 +15,7 @@
             </value>
         </inputParameters>
         <nameSegment>SendWhatsAppRFINotification</nameSegment>
+        <offset>0</offset>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </actionCalls>
     <apiVersion>61.0</apiVersion>

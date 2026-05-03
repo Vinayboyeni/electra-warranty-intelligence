@@ -239,6 +239,13 @@ public without sharing class GetWarrantyClaimApprovalContext {
             }
             if (r.previousClaims != null) body += '---\n*Previous Claims:*\n' + r.previousClaims + '\n';
             if (r.clarificationRequest != null) body += '---\n*Pending Clarification:* ' + r.clarificationRequest + '\n';
+            if (String.isNotBlank(r.dealerResponseSummary)) body += ':speech_balloon: *Dealer Response:* ' + r.dealerResponseSummary + '\n';
+
+            // Attachments section — public links to every image/PDF on the Claim
+            // (uploaded via the dealer portal LWC or any other channel that creates
+            // a ContentDistribution). Lets the approver click directly from Slack.
+            String attachmentsBlock = buildAttachmentsBlock(claim.Id);
+            if (String.isNotBlank(attachmentsBlock)) body += attachmentsBlock;
 
             // Footer: direct Salesforce link + agent shortcut commands
             String baseUrl = System.URL.getOrgDomainUrl().toExternalForm();
@@ -271,6 +278,75 @@ public without sharing class GetWarrantyClaimApprovalContext {
             }
         }
         return out;
+    }
+
+    /**
+     * Builds the :paperclip: *Attachments:* block listing every image / PDF
+     * attached to the Claim, with a public ContentDistribution URL for each
+     * (so the Slack approver can click straight from the card).
+     *
+     * Skips files that don't have a ContentDistribution yet — the LWC's
+     * publishUploadedFiles() creates those at upload time.
+     *
+     * Returns empty string when there's nothing publishable to show.
+     */
+    private static String buildAttachmentsBlock(Id claimId) {
+        if (claimId == null) return '';
+
+        try {
+            List<ContentDocumentLink> links = [
+                SELECT ContentDocumentId
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :claimId
+            ];
+            if (links.isEmpty()) return '';
+
+            Set<Id> docIds = new Set<Id>();
+            for (ContentDocumentLink l : links) docIds.add(l.ContentDocumentId);
+
+            List<ContentVersion> versions = [
+                SELECT Id, Title, FileExtension, CreatedDate
+                FROM ContentVersion
+                WHERE ContentDocumentId IN :docIds
+                  AND IsLatest = true
+                ORDER BY CreatedDate DESC
+            ];
+            if (versions.isEmpty()) return '';
+
+            Set<Id> versionIds = new Set<Id>();
+            for (ContentVersion cv : versions) versionIds.add(cv.Id);
+
+            Map<Id, String> urlByVersion = new Map<Id, String>();
+            for (ContentDistribution cd : [
+                SELECT ContentVersionId, DistributionPublicUrl
+                FROM ContentDistribution
+                WHERE ContentVersionId IN :versionIds
+            ]) {
+                if (String.isNotBlank(cd.DistributionPublicUrl)) {
+                    urlByVersion.put(cd.ContentVersionId, cd.DistributionPublicUrl);
+                }
+            }
+
+            List<String> lines = new List<String>();
+            for (ContentVersion cv : versions) {
+                String url = urlByVersion.get(cv.Id);
+                if (String.isBlank(url)) continue; // skip files without a public link
+
+                String name = String.isNotBlank(cv.Title) ? cv.Title : 'Attachment';
+                if (String.isNotBlank(cv.FileExtension)) {
+                    name += '.' + cv.FileExtension;
+                }
+                lines.add('  • ' + name + ' — <' + url + '|click to view>');
+            }
+
+            if (lines.isEmpty()) return '';
+
+            return '---\n:paperclip: *Attachments (' + lines.size() + '):*\n'
+                + String.join(lines, '\n') + '\n';
+        } catch (Exception e) {
+            System.debug('buildAttachmentsBlock swallowed: ' + e.getMessage());
+            return '';
+        }
     }
 
     /**

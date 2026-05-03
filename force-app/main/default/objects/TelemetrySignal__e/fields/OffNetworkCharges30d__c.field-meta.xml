@@ -3,6 +3,9 @@
     <fullName>OffNetworkCharges30d__c</fullName>
     <description>Count of charge events at non-Electra-network locations in the last 30 days.</description>
     <externalId>false</externalId>
+    <isFilteringDisabled>false</isFilteringDisabled>
+    <isNameField>false</isNameField>
+    <isSortingDisabled>false</isSortingDisabled>
     <label>Off-Network Charges (30d)</label>
     <precision>5</precision>
     <required>false</required>

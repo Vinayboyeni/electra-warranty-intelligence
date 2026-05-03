@@ -1,36 +1,56 @@
 <template>
-    <section class="hero">
+    <section class="hero" aria-labelledby="electra-hero-headline">
         <div class="hero__inner">
             <div class="hero__brand-row">
-                <div class="hero__logo">⚡ ELECTRA</div>
+                <div class="hero__logo" aria-label="Electra brand">
+                    <span class="hero__logo-mark" aria-hidden="true">⚡</span>
+                    <span class="hero__logo-text">ELECTRA</span>
+                </div>
+                <div class="hero__divider" aria-hidden="true"></div>
                 <div class="hero__tagline">Warranty Operations · Dealer Portal</div>
             </div>
 
-            <h1 class="hero__headline">{headline}</h1>
+            <h1 id="electra-hero-headline" class="hero__headline">{headline}</h1>
             <p class="hero__subheadline">{subheadline}</p>
 
             <div class="hero__cta-row">
-                <button class="hero__cta hero__cta--primary" onclick={handlePrimaryCta}>
+                <button
+                    type="button"
+                    class="hero__cta hero__cta--primary"
+                    onclick={handlePrimaryCta}
+                    aria-label="Start a warranty claim with ARIA assistant"
+                >
+                    <span class="hero__cta-arrow" aria-hidden="true">→</span>
                     {primaryCtaLabel}
                 </button>
-                <button class="hero__cta hero__cta--secondary" onclick={handleSecondaryCta}>
+                <button
+                    type="button"
+                    class="hero__cta hero__cta--secondary"
+                    onclick={handleSecondaryCta}
+                    aria-label="Track an existing claim by number or VIN"
+                >
                     {secondaryCtaLabel}
                 </button>
             </div>
 
-            <div class="hero__stats">
-                <div class="hero__stat">
+            <div class="hero__stats" role="list" aria-label="Service highlights">
+                <div class="hero__stat" role="listitem">
                     <div class="hero__stat-value">&lt;30s</div>
-                    <div class="hero__stat-label">Auto-approval decision time</div>
+                    <div class="hero__stat-label">Auto-approval decision</div>
                 </div>
-                <div class="hero__stat">
-                    <div class="hero__stat-value">3 ch</div>
-                    <div class="hero__stat-label">WhatsApp · Web · Slack</div>
+                <div class="hero__stat" role="listitem">
+                    <div class="hero__stat-value">3</div>
+                    <div class="hero__stat-label">Channels · Web · Slack · Email</div>
                 </div>
-                <div class="hero__stat">
+                <div class="hero__stat" role="listitem">
                     <div class="hero__stat-value">24/7</div>
                     <div class="hero__stat-label">ARIA always available</div>
                 </div>
+            </div>
+
+            <div class="hero__live" aria-hidden="true">
+                <span class="hero__live-dot"></span>
+                <span class="hero__live-text">Live · powered by Agentforce on Salesforce Automotive Cloud</span>
             </div>
         </div>
     </section>

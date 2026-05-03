@@ -28,10 +28,10 @@
         <actionName>PostToSlackWebhook</actionName>
         <actionType>apex</actionType>
         <connector>
-            <targetReference>Post_Claim_Notification</targetReference>
+            <targetReference>Update_Last_Status_Change</targetReference>
         </connector>
         <faultConnector>
-            <targetReference>Post_Claim_Notification</targetReference>
+            <targetReference>Update_Last_Status_Change</targetReference>
         </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
@@ -74,28 +74,6 @@
         </value>
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
-    <recordCreates>
-        <name>Post_Claim_Notification</name>
-        <label>Post Claim Notification to Chatter</label>
-        <locationX>176</locationX>
-        <locationY>188</locationY>
-        <connector>
-            <targetReference>Update_Last_Status_Change</targetReference>
-        </connector>
-        <inputAssignments>
-            <field>Body</field>
-            <value>
-                <elementReference>Approver_Notification_Body</elementReference>
-            </value>
-        </inputAssignments>
-        <inputAssignments>
-            <field>ParentId</field>
-            <value>
-                <elementReference>$Record.Id</elementReference>
-            </value>
-        </inputAssignments>
-        <object>FeedItem</object>
-    </recordCreates>
     <recordUpdates>
         <name>Update_Last_Status_Change</name>
         <label>Update Last Status Change</label>
@@ -117,6 +95,7 @@
         </inputAssignments>
         <object>Claim</object>
     </recordUpdates>
+    <runInMode>SystemModeWithoutSharing</runInMode>
     <start>
         <locationX>50</locationX>
         <locationY>0</locationY>

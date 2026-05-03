@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>TelemetrySignal__c</fullName>
-    <description>Rolled-up vehicle telemetry signal from Data Cloud. Written by TelemetrySignalTrigger when a TelemetrySignal__e platform event fires for a VIN tied to this claim's vehicle.</description>
-    <externalId>false</externalId>
+    <description>Rolled-up vehicle telemetry signal from Data Cloud. Written by TelemetrySignalTrigger when a TelemetrySignal__e platform event fires for a VIN tied to this claim&apos;s vehicle.</description>
     <label>Telemetry Signal</label>
     <length>500</length>
-    <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
     <trackHistory>false</trackHistory>
     <type>LongTextArea</type>

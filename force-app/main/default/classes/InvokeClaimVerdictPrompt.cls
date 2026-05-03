@@ -113,21 +113,39 @@ public without sharing class InvokeClaimVerdictPrompt {
                 return null;
             }
             // Template-binding sanity check: if the LLM claims required fields
-            // are missing but they ARE populated on the claim, the template's
-            // variable resolution failed (Map<->SObject Object-input mismatch).
-            // Fall back to rule-based so we don't surface a misleading verdict.
+            // are missing/insufficient but they ARE populated on the claim,
+            // the template's variable resolution failed. Fall back to
+            // rule-based so we don't surface a misleading verdict.
             Object summaryObj = asMap.get('summary');
             String summary = (summaryObj instanceof String) ? (String) summaryObj : '';
             String summaryLower = summary.toLowerCase();
-            Boolean claimsMissing = summaryLower.contains('missing')
-                && (summaryLower.contains('details') || summaryLower.contains('information')
-                    || summaryLower.contains('part') || summaryLower.contains('symptom'));
+
+            // Catches: "missing details", "insufficient claim details",
+            // "not provided", "please provide", "request part category", etc.
+            Boolean claimsMissing = (
+                    summaryLower.contains('missing')
+                 || summaryLower.contains('insufficient')
+                 || summaryLower.contains('not provided')
+                 || summaryLower.contains('please provide')
+                 || summaryLower.contains('request part')
+                 || summaryLower.contains('request symptom')
+                 || summaryLower.contains('request coverage')
+                 || summaryLower.contains('request odometer')
+            ) && (
+                    summaryLower.contains('details')
+                 || summaryLower.contains('information')
+                 || summaryLower.contains('part')
+                 || summaryLower.contains('symptom')
+                 || summaryLower.contains('odometer')
+                 || summaryLower.contains('cost')
+                 || summaryLower.contains('verdict')
+            );
             Boolean fieldsActuallyPopulated = String.isNotBlank(c.PartCategory__c)
                 && String.isNotBlank(c.Symptom__c)
                 && c.EstimatedCost__c != null
                 && c.Odometer__c != null;
             if (claimsMissing && fieldsActuallyPopulated) {
-                System.debug('Template reported missing fields but they ARE populated. Falling back to rule-based.');
+                System.debug('Template reported missing/insufficient fields but they ARE populated. Falling back to rule-based.');
                 return null;
             }
             return asMap;
@@ -155,34 +173,24 @@ public without sharing class InvokeClaimVerdictPrompt {
             inp.additionalConfig = addCfg;
             inp.isPreview = false;
 
-            // Pre-render the claim into a single text blob. Probe-verified
-            // that the template body's {!$Input:Claim.field__c} references
-            // do NOT resolve from a Map<String,Object> — they render empty,
-            // and the LLM sees a blank prompt. By sending one rendered Text
-            // input instead, the LLM gets the data verbatim and produces
-            // reliable JSON output.
+            // Send the actual Claim SObject (not a Map). The template's input
+            // is declared as SOBJECT://Claim, so the merge fields like
+            // {!$Input:Claim.PartCategory__c} only resolve when the wrapped
+            // value is a real Claim record. Passing a Map<String,Object>
+            // caused the merges to render empty — the LLM saw a blank
+            // prompt and replied with generic "insufficient details" text.
+            ConnectApi.WrappedValue claimWv = new ConnectApi.WrappedValue();
+            claimWv.value = c;
+
+            // Also send the pre-rendered text context as a redundant fallback
+            // for templates that prefer a single Text input.
             String claimContext = renderClaimContext(c);
             ConnectApi.WrappedValue contextWv = new ConnectApi.WrappedValue();
             contextWv.value = claimContext;
 
-            // Also send the legacy Map<String,Object> so older templates
-            // (still using the Object input) keep their existing behavior
-            // until the user migrates them in Prompt Builder.
-            Map<String, Object> claimMap = new Map<String, Object>{
-                'Id'              => c.Id,
-                'Name'            => c.Name,
-                'PartCategory__c' => c.PartCategory__c,
-                'Symptom__c'      => c.Symptom__c,
-                'Odometer__c'     => c.Odometer__c,
-                'EstimatedCost__c'=> c.EstimatedCost__c,
-                'Eligibility__c'  => c.Eligibility__c
-            };
-            ConnectApi.WrappedValue claimWv = new ConnectApi.WrappedValue();
-            claimWv.value = claimMap;
-
             inp.inputParams = new Map<String, ConnectApi.WrappedValue>{
-                'Input:ClaimContext' => contextWv,
-                'Input:Claim'        => claimWv
+                'Input:Claim'        => claimWv,
+                'Input:ClaimContext' => contextWv
             };
 
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result =

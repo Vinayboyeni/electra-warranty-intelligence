@@ -3,6 +3,9 @@
     <fullName>FaultCount30d__c</fullName>
     <description>Count of Fault-type telemetry events in the last 30 days for the VIN.</description>
     <externalId>false</externalId>
+    <isFilteringDisabled>false</isFilteringDisabled>
+    <isNameField>false</isNameField>
+    <isSortingDisabled>false</isSortingDisabled>
     <label>Fault Count (30d)</label>
     <precision>5</precision>
     <required>false</required>

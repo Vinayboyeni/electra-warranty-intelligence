@@ -3,6 +3,9 @@
     <fullName>VIN__c</fullName>
     <description>17-character VIN carried on the event; used to resolve the matching Vehicle + Claim.</description>
     <externalId>false</externalId>
+    <isFilteringDisabled>false</isFilteringDisabled>
+    <isNameField>false</isNameField>
+    <isSortingDisabled>false</isSortingDisabled>
     <label>VIN</label>
     <length>17</length>
     <required>true</required>

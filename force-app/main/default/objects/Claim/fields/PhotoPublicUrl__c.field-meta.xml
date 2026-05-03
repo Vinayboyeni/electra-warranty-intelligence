@@ -2,10 +2,8 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>PhotoPublicUrl__c</fullName>
     <description>Public ContentDistribution URL of the most recent dealer-uploaded damage photo. Populated by ImageDamageAnalyzer when a photo is processed. Surfaced on the approver Slack card so the human reviewer can click through to the actual image (not just the AI textual analysis).</description>
-    <externalId>false</externalId>
     <label>Photo Public URL</label>
     <length>500</length>
-    <required>false</required>
     <trackFeedHistory>false</trackFeedHistory>
     <trackHistory>false</trackHistory>
     <type>LongTextArea</type>

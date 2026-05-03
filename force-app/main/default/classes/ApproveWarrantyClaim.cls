@@ -1,4 +1,4 @@
-public with sharing class ApproveWarrantyClaim {
+public without sharing class ApproveWarrantyClaim {
     public class Input {
         @InvocableVariable(label='Claim Id' description='Id of the Claim to approve.')
         public Id claimId;
@@ -125,7 +125,7 @@ public with sharing class ApproveWarrantyClaim {
                     result.message = 'Claim is already decided (Approved or Rejected). No action taken.';
                 } else {
                     result.status = 'Success';
-                    result.message = 'Claim approved successfully. Dealer notified on WhatsApp.';
+                    result.message = 'Claim approved successfully. Dealer notified via email and the dealer portal.';
                 }
             } else {
                 result.status = 'Error';

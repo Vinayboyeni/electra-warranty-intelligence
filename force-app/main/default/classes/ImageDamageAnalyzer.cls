@@ -61,10 +61,16 @@ public without sharing class ImageDamageAnalyzer {
                 System.debug('Error saving image analysis: ' + e.getMessage());
             }
 
-            // 3. Link photo to Claim + create public URL
-            //    (so approver sees the photo in Slack + on the Claim record)
-            String publicUrl = linkPhotoAndCreateDistribution(req.claimId, req.imageUrl);
-            res.photoPublicUrl = publicUrl;
+            // 3. Link photo to Claim + create public URL — only if imageUrl exists.
+            //    Wrapped so a missing/invalid URL never blocks the analysis text.
+            if (String.isNotBlank(req.imageUrl)) {
+                try {
+                    String publicUrl = linkPhotoAndCreateDistribution(req.claimId, req.imageUrl);
+                    res.photoPublicUrl = publicUrl;
+                } catch (Exception e) {
+                    System.debug('linkPhotoAndCreateDistribution swallowed: ' + e.getMessage());
+                }
+            }
 
             results.add(res);
         }

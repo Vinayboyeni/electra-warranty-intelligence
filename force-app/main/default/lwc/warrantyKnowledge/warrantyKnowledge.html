@@ -1,38 +1,66 @@
 <template>
-    <section class="kb">
+    <section class="kb" aria-labelledby="kb-title">
         <div class="kb__inner">
             <div class="kb__header">
-                <div class="kb__eyebrow">Warranty essentials</div>
-                <h2 class="kb__title">Know before you file</h2>
+                <div class="kb__eyebrow">Warranty Essentials</div>
+                <h2 id="kb-title" class="kb__title">Know before you file</h2>
                 <p class="kb__subtitle">A 30-second refresher on what's covered, what isn't, and how to get the fastest decision.</p>
             </div>
 
-            <div class="kb__grid">
-                <article class="kb__card kb__card--blue">
-                    <div class="kb__card-icon">🛠️</div>
+            <div class="kb__grid" role="list">
+                <article class="kb__card kb__card--blue" role="listitem">
+                    <div class="kb__card-header">
+                        <div class="kb__card-icon" aria-hidden="true">🛠️</div>
+                        <span class="kb__card-tag kb__card-tag--blue">Standard</span>
+                    </div>
                     <h3 class="kb__card-title">Standard warranty</h3>
                     <div class="kb__card-meta">4 years · 50,000 miles</div>
                     <p class="kb__card-body">Covers Engine, Transmission, Drive Motor, HVAC, Suspension, Brake System, Electrical, Charging System, and Infotainment. Whichever limit (years or miles) is reached first.</p>
                 </article>
 
-                <article class="kb__card kb__card--green">
-                    <div class="kb__card-icon">🔋</div>
+                <article class="kb__card kb__card--green" role="listitem">
+                    <div class="kb__card-header">
+                        <div class="kb__card-icon" aria-hidden="true">🔋</div>
+                        <span class="kb__card-tag kb__card-tag--green">Extended</span>
+                    </div>
                     <h3 class="kb__card-title">EV battery extended</h3>
                     <div class="kb__card-meta">8 years · 100,000 miles</div>
                     <p class="kb__card-body">All Electra EV batteries carry an extended coverage period. Includes BMS controller, cell modules, and pack housing. Diagnostic logs required for prior auth.</p>
                 </article>
 
-                <article class="kb__card kb__card--amber">
-                    <div class="kb__card-icon">⚠️</div>
+                <article class="kb__card kb__card--amber" role="listitem">
+                    <div class="kb__card-header">
+                        <div class="kb__card-icon" aria-hidden="true">⚠️</div>
+                        <span class="kb__card-tag kb__card-tag--amber">Excluded</span>
+                    </div>
                     <h3 class="kb__card-title">Not covered</h3>
                     <div class="kb__card-meta">Wear items &amp; user damage</div>
                     <p class="kb__card-body">Brake pads, tires, wipers, cabin filters, and 12V batteries are wear items — out of scope. Accidental damage and aftermarket modifications void prior-auth.</p>
                 </article>
             </div>
 
+            <div class="kb__chips" aria-label="Service-level commitments">
+                <div class="kb__chip">
+                    <span class="kb__chip-icon" aria-hidden="true">⏱️</span>
+                    <span class="kb__chip-text"><strong>24-hour SLA</strong> on prior-auth review</span>
+                </div>
+                <div class="kb__chip">
+                    <span class="kb__chip-icon" aria-hidden="true">⚡</span>
+                    <span class="kb__chip-text"><strong>Auto-approve</strong> for low-risk claims under $500</span>
+                </div>
+                <div class="kb__chip">
+                    <span class="kb__chip-icon" aria-hidden="true">🔄</span>
+                    <span class="kb__chip-text"><strong>Two-way clarification</strong> directly from this portal</span>
+                </div>
+            </div>
+
             <div class="kb__footer">
-                <span class="kb__footer-icon">💡</span>
-                <span class="kb__footer-text">Need a goodwill exception? Reply <strong>GOODWILL</strong> on WhatsApp after a denial — your account manager will review within 48 business hours.</span>
+                <span class="kb__footer-icon" aria-hidden="true">💡</span>
+                <span class="kb__footer-text">
+                    <strong>Need a goodwill exception?</strong> If standard coverage doesn't apply, ARIA can submit your claim for a manager review.
+                    Reply <code class="kb__footer-code">GOODWILL</code> in the chat after a denial — your account manager will respond within
+                    <strong>48 business hours</strong>.
+                </span>
             </div>
         </div>
     </section>
