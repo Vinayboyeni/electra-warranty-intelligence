@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>w6tHgw4OreK65s55XBGBXziv5goaRUgD0Q4E3Hkwk+I=_1</activeVersionIdentifier>
+    <description>Classifies warranty claim risk (Likely / Borderline / Not Covered) with a one-line rationale for the approver card.</description>
+    <developerName>Claim_Risk_Verdict</developerName>
+    <masterLabel>Claim Risk Verdict</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>You are a warranty claim triage assistant for Electra Cars, an EV OEM.
+
+Classify the claim below and return your answer as JSON only, no prose, no code fences, no markdown.
+
+Expected shape:
+{
+  &quot;recommendation&quot;: &quot;Approve&quot; | &quot;Reject&quot; | &quot;Needs Clarification&quot;,
+  &quot;confidence&quot;: &lt;integer 0-100&gt;,
+  &quot;summary&quot;: &quot;&lt;one sentence, &lt;=25 words&gt;&quot;
+}
+
+Decision rules:
+- If coverage == &quot;Not Covered&quot; → Reject (confidence 90-95)
+- If coverage == &quot;Likely&quot; AND symptom matches a known defect pattern (battery degradation, inverter failure, drive unit noise, HV system fault, BMS fault) → Approve (confidence 85-95)
+- If odometer &gt; 80000 AND part category is a wear item (brakes, wipers, tires, 12V battery, cabin filter) → Reject (confidence 80-90)
+- If symptom is vague (&quot;not working&quot;, &quot;issue&quot;, &quot;problem&quot;) → Needs Clarification (confidence 40-60)
+- Estimated cost &gt; $3000 with Borderline coverage → Needs Clarification (confidence 50-70)
+- Otherwise default to Needs Clarification with an explanation of what&apos;s missing.
+
+Claim data:
+- Part category: {!$Input:Claim.PartCategory__c}
+- Reported symptom: {!$Input:Claim.Symptom__c}
+- Coverage engine verdict: {!$Input:Claim.Eligibility__c}
+- Odometer: {!$Input:Claim.Odometer__c} 
+- Estimated cost: ${!$Input:Claim.EstimatedCost__c}
+
+Return ONLY the JSON object. Do not wrap it in ```json fences.
+
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>Claim</apiName>
+            <definition>SOBJECT://Claim</definition>
+            <masterLabel>Claim</masterLabel>
+            <referenceName>Input:Claim</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT5Mini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>w6tHgw4OreK65s55XBGBXziv5goaRUgD0Q4E3Hkwk+I=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

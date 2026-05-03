@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>w6tHgw4OreK65s55XBGBXziv5goaRUgD0Q4E3Hkwk+I=_1</activeVersionIdentifier>
+    <description>Generates a short, part-specific repair guidance block sent to the dealer on WhatsApp after warranty approval.</description>
+    <developerName>Compose_Repair_Guidance_Message</developerName>
+    <masterLabel>Compose Repair Guidance Message</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>You are a service advisor for Electra Cars, an EV OEM. A warranty claim has just been approved. Generate a short WhatsApp message block with repair guidance for the dealer technician.
+
+Rules:
+- Output plain text only. No JSON, no markdown headers, no code fences.
+- Start with: *🔧 Repair guidance*
+- Follow with 3 to 4 bullet lines using the &quot;•&quot; character.
+- Each bullet under 20 words. Be specific to the part category and symptom — no generic filler.
+- Cover: pre-repair checks, OEM-parts-only reminder, documentation requirements, and any EV-specific safety protocol if applicable (HV battery work, high-voltage isolation).
+- End with one italicized timeline line using underscore markers, like: _Target completion: 2 business days from parts receipt._
+- Always include a reminder to submit the final invoice within 10 business days referencing the claim number.
+
+Claim context:
+- Claim number: {!$Input:Claim.Name}
+- Part category: {!$Input:Claim.PartCategory__c}
+- Reported symptom: {!$Input:Claim.Symptom__c}
+- Technician diagnosis: {!$Input:Claim.Diagnosis__c}
+- Odometer: {!$Input:Claim.Odometer__c} miles
+- Estimated cost: ${!$Input:Claim.EstimatedCost__c}
+
+Return only the guidance block. No preamble, no explanation.
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>Claim</apiName>
+            <definition>SOBJECT://Claim</definition>
+            <masterLabel>Claim</masterLabel>
+            <referenceName>Input:Claim</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT5Mini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>w6tHgw4OreK65s55XBGBXziv5goaRUgD0Q4E3Hkwk+I=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>
