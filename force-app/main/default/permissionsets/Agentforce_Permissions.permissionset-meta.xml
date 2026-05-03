@@ -93,19 +93,11 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
-        <apexClass>FindVehicleWarrantyByVin</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
         <apexClass>GenerateApprovalAuthorization</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
         <apexClass>GetClaimStatus</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>GetPendingClaimsQueue</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
@@ -170,14 +162,6 @@
     </classAccesses>
     <classAccesses>
         <apexClass>RouteClaimToApproverQueue</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>SendWarrantyExpiryAlert</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>SendWarrantyExpiryAlertTest</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
