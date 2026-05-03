@@ -103,7 +103,7 @@ This example shows routing directly to the owner of the Contact who is calling.<
         <inputParameters>
             <name>copilotLabel</name>
             <value>
-                <stringValue>ARIA WhatsApp Intake Agent</stringValue>
+                <stringValue>ARIA Web Chat Intake Agent</stringValue>
             </value>
         </inputParameters>
         <inputParameters>
@@ -206,7 +206,7 @@ This example shows routing to a defined Queue.</description>
         <inputParameters>
             <name>copilotLabel</name>
             <value>
-                <stringValue>ARIA WhatsApp Intake Agent</stringValue>
+                <stringValue>ARIA Web Chat Intake Agent</stringValue>
             </value>
         </inputParameters>
         <inputParameters>
@@ -309,7 +309,7 @@ This example shows routing to a defined Queue.</description>
         <inputParameters>
             <name>copilotLabel</name>
             <value>
-                <stringValue>ARIA WhatsApp Intake Agent</stringValue>
+                <stringValue>ARIA Web Chat Intake Agent</stringValue>
             </value>
         </inputParameters>
         <inputParameters>

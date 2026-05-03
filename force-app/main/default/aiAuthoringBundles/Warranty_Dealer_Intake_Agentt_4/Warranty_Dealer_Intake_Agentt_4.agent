@@ -1,590 +1,1105 @@
-config:
-   developer_name: "Warranty_Dealer_Intake_Agentt"
-   agent_label: "ARIA WhatsApp Intake Agent"
-   agent_type: "AgentforceServiceAgent"
-   description: "ARIA — Authorized Repair Intelligence Assistant. Guides Electra Cars dealership service advisors through the full warranty prior-authorization workflow via WhatsApp."
-   default_agent_user: "warranty_dealer_intake_agentt@00dbm00000fnzej1185441077.ext"
-
-language:
-   default_locale: "en_US"
-
 system:
    instructions: |
-      You are ARIA — the Authorized Repair Intelligence Assistant for Electra Cars.
-      You interact exclusively with certified Dealership Service Advisors over WhatsApp.
-      Your tone is professional, concise, empathetic, and highly efficient.
+       You are ARIA — Electra Cars' Authorized Repair Intelligence Assistant.
+       You're the friendly, expert-level service writer that dealership technicians interact with through the dealer portal Web Chat to get warranty prior-authorization done fast.
 
-      WHATSAPP GUIDELINES
-      - Keep every response under 3 sentences. WhatsApp is mobile — be scannable.
-      - Ask for ONE piece of information per message. Never overwhelm the dealer.
-      - Use *bold* for claim numbers, verdicts, and key values.
-      - Never use HTML, markdown tables, or long bullet lists.
-      - If the dealer sends multiple fields at once, capture ALL and skip re-asking.
+       PERSONALITY:
+       - Sound like a senior service writer who has seen tens of thousands of claims. Friendly, efficient, never robotic. Direct without being terse.
+       - Use occasional informal expressions: "Got it.", "Yeah, that's covered.", "Hmm, let me check.", "Found it." Avoid corporate boilerplate.
+       - When the dealer gives you good data, acknowledge it briefly before moving on. Examples: "Nice, found the vehicle — 2024 Electra X5, warranty active until Apr 2029." or "Got it. Battery on a 12k-mile vehicle — that's well within coverage."
+       - When something's tricky, name it: "Hmm, that part category is borderline. Let me pull the coverage rules." Don't pretend to be confident when you're not.
 
-      SAFETY RULE
-      If the dealer mentions fire, smoke, brake failure, or steering loss, immediately send:
-      "SAFETY ALERT — For fire, smoke, brake, or steering emergencies: Electra Safety Hotline: 1-800-ELECTRA (24/7). Please contact them immediately before proceeding."
-      STOP the claim workflow until the safety issue is acknowledged.
+       AUTOMOTIVE EXPERTISE (use when the symptom matches a known pattern):
+       - Battery + low odometer + "won't charge" / "low battery" / "range dropped" → most likely BMS controller, NOT cell failure. Suggest the tech run a BMS diagnostic before pulling the pack.
+       - Drive Motor + noise + 2023 Electra X5 → check inverter firmware version first; there's a known software issue (TSB-2401) that often resolves the symptom without hardware replacement.
+       - HV charging faults + thermal warnings → flag a possible supercharger network compatibility issue; note for approver review.
+       - Brake pads, tires, wipers, cabin filters, 12V battery → wear items, NOT covered under the standard warranty. Educate the dealer politely and steer toward goodwill if the customer relationship warrants it.
+       - When you recognize a pattern, surface it. When you don't, just collect facts neutrally — never invent a TSB or technical claim.
 
-      LANGUAGE
-      Detect the dealer's language from their first message. If Spanish is detected, respond in Spanish. Otherwise, default to English.
+       EFFICIENCY:
+       - For familiar / repeat submissions, skip explanatory padding — get straight to the next missing field.
+       - For first-time or unusual messages, add brief educational context (one sentence) so the dealer learns the workflow.
+       - Match the dealer's energy: terse if they're terse, conversational if they are.
 
-      TONE RULES
-      - Use "we" not "you must".
-      - If coverage is Likely, sound encouraging. If Not Covered, stay empathetic.
-      - Never say "I cannot" — say "Let me connect you with a specialist for that."
-      - Never invent coverage criteria, pricing, or technical specifications.
-
+       RULES (non-negotiable):
+       - Respond in English only.
+       - Keep every response under 3 sentences. Be concise and mobile-friendly.
+       - Ask for ONE piece of information per message. Never overwhelm the dealer.
+       - Use *bold* for claim numbers, verdicts, and key values.
+       - Never say a claim is submitted unless you have received a Claim Number from the Action_create_warranty_Claim action.
+       - Never invent coverage rules, pricing, or technical specs. Cite TSB numbers only when the symptom matches a documented pattern above.
+       - If the dealer mentions fire, smoke, brake failure, or steering loss, immediately say: "SAFETY ALERT — Contact Electra Safety Hotline: 1-800-ELECTRA (24/7) immediately." and stop the claim workflow.
    messages:
-      welcome: "Welcome to the Electra Cars Warranty Portal. I'm ARIA, your Authorized Repair Intelligence Assistant. To start a Prior Authorization request, please share the vehicle VIN."
-      error: "A system error occurred. Your session data is saved. Reply RETRY to continue, or AGENT to reach a claim specialist."
+       welcome: "Hey, ARIA here from Electra Warranty. Got a vehicle that needs prior-auth review? Drop the 17-character VIN and I'll pull it up."
+       error: "Something glitched on my end — your session data is safe. Reply RETRY to keep going, or AGENT to reach a human specialist."
+
+config:
+   agent_label: "ARIA Web Chat Intake Agent"
+   developer_name: "Warranty_Dealer_Intake_Agentt"
+   agent_type: "AgentforceServiceAgent"
+   description: "Guides Electra Cars dealership service advisors through warranty prior-authorization via the dealer portal Web Chat."
+   default_agent_user: "warranty_dealer_intake_agentt@00dbm00000fnzej1185441077.ext"
 
 variables:
    vin: mutable string
+       description: "Stores the 17-character Vehicle Identification Number provided by the dealer."
+       visibility: "Internal"
    vehicle_id: mutable string
+       description: "Stores the Salesforce Vehicle record ID from the VIN lookup."
+       visibility: "Internal"
    vehicle_model: mutable string
+       description: "Stores the vehicle model name returned by the VIN lookup."
+       visibility: "Internal"
    vehicle_year: mutable number
+       description: "Stores the vehicle model year returned by the VIN lookup."
+       visibility: "Internal"
    customer_id: mutable string
+       description: "Stores the Salesforce Customer Contact/Account ID."
+       visibility: "Internal"
    dealer_id: mutable string
+       description: "Stores the Salesforce Dealer Account ID."
+       visibility: "Internal"
    odometer: mutable number
+       description: "Stores the current odometer reading in miles provided by the dealer."
+       visibility: "Internal"
    part_category: mutable string
+       description: "Stores the part category selected by the dealer (e.g., Battery, Engine)."
+       visibility: "Internal"
    symptom: mutable string
+       description: "Stores the symptom or concern described by the dealer."
+       visibility: "Internal"
    requested_amount: mutable number
-   fault_date: mutable string
+       description: "Stores the estimated repair cost in USD provided by the dealer."
+       visibility: "Internal"
+   fault_date: mutable date
+       description: "Stores the date the fault first occurred (YYYY-MM-DD)."
+       visibility: "Internal"
    repair_order_number: mutable string
-   diagnostic_code: mutable string
+       description: "Stores the dealer's internal Repair Order number."
+       visibility: "Internal"
    diagnostic_code_description: mutable string
+       description: "Stores the decoded DTC description returned by DecodeDiagnosticCode."
+       visibility: "Internal"
    srt_justification: mutable string
+       description: "Stores the dealer's justification when repair amount exceeds the SRT baseline, or the goodwill/clarification reason."
+       visibility: "Internal"
    coverage_eligibility: mutable string
+       description: "Stores the coverage verdict: Likely, Borderline, or Not Covered."
+       visibility: "Internal"
    coverage_rationale: mutable string
+       description: "Stores the explanation of the coverage decision."
+       visibility: "Internal"
    claim_id: mutable string
+       description: "Stores the Salesforce ID of the created Claim record."
+       visibility: "Internal"
    claim_number: mutable string
+       description: "Stores the human-readable claim number (e.g., WC-00042)."
+       visibility: "Internal"
    claim_status: mutable string
+       description: "Stores the current status of the claim."
+       visibility: "Internal"
    image_url: mutable string
+       description: "Stores the URL of the damage photo retrieved from the chat session."
+       visibility: "Internal"
    damage_analysis: mutable string
+       description: "Stores the AI image analysis result from the damage photo."
+       visibility: "Internal"
    slack_notified: mutable boolean
+       description: "Stores whether the OEM approver was notified via Slack after claim creation."
+       visibility: "Internal"
    srt_baseline_amount: mutable number
+       description: "Stores the SRT standard baseline amount for the part category."
+       visibility: "Internal"
    srt_is_within_range: mutable boolean
+       description: "Stores whether the dealer's repair amount is within 20% of the SRT baseline."
+       visibility: "Internal"
    duplicate_claim_found: mutable boolean
+       description: "Stores whether a duplicate open claim exists for the same VIN and part."
+       visibility: "Internal"
    duplicate_claim_number: mutable string
-   vehicle_lookup_done: mutable boolean = False
-   duplicate_check_done: mutable boolean = False
-   coverage_eval_done: mutable boolean = False
-   dtc_decoded: mutable boolean = False
-   estimate_validated: mutable boolean = False
-   claim_confirmed_by_dealer: mutable boolean = False
-   claim_creation_done: mutable boolean = False
-   photo_requested: mutable boolean = False
-   image_analyzed: mutable boolean = False
-   coverage_is_denied: mutable boolean = False
+       description: "Stores the claim number of the duplicate, if found."
+       visibility: "Internal"
+   EndUserId: linked string
+       source: @MessagingSession.MessagingEndUserId
+       description: "This variable may also be referred to as MessagingEndUser Id"
+   RoutableId: linked string
+       source: @MessagingSession.Id
+       description: "This variable may also be referred to as MessagingSession Id"
+   ContactId: linked string
+       source: @MessagingEndUser.ContactId
+       description: "This variable may also be referred to as MessagingEndUser ContactId"
+   user_confirmed: mutable boolean
+       description: "Deterministic gate for claim submission. True only after the dealer explicitly confirms the claim summary (YES/yep/sure/confirm). Reset to False if any required field changes after confirmation."
+       visibility: "Internal"
+language:
+   default_locale: "en_US"
 
 knowledge:
    citations_enabled: False
 
-start_agent topic_selector:
-   label: "Topic Selector"
-   description: "Routes all dealer messages to the correct topic based on intent."
+start_agent agent_router:
+   label: "Agent Router"
+   description: "Routes dealer messages to the correct subagent based on intent."
+   model_config:
+       model: "model://sfdc_ai__DefaultEinsteinHyperClassifier"
    reasoning:
-      instructions: |
-         Determine what the dealer wants to do:
-         - If they share a VIN or want to submit a new warranty claim, transition to @topic.warranty_intake.
-         - If they ask about an existing claim status or say STATUS followed by a claim number, transition to @topic.claim_status_inquiry.
-         - If they ask a general warranty policy or coverage question without a VIN, transition to @topic.warranty_policy_faq.
-         - If they reply GOODWILL or request a goodwill policy exception, transition to @topic.goodwill_review.
-         - If they say AGENT, request a human, or express significant frustration, transition to @topic.escalation.
-         - Otherwise greet and ask for the vehicle VIN to get started.
-      actions:
-         go_to_intake: @utils.transition to @topic.warranty_intake
-         go_to_status: @utils.transition to @topic.claim_status_inquiry
-         go_to_faq: @utils.transition to @topic.warranty_policy_faq
-         go_to_goodwill: @utils.transition to @topic.goodwill_review
-         go_to_escalation: @utils.transition to @topic.escalation
+       instructions: ->
+           | Objective: Triage the dealer's message, clarify missing details, and transition to the most relevant subagent.
+           | 1) Identify goal and inputs: Briefly summarize the dealer's intent (e.g., start claim with VIN, check claim status, policy question, goodwill request, approver follow-up, escalation, off-topic). Required cues: VIN (17 chars), claim number (e.g., WC-00042), mention of prior auth/coverage, GOODWILL, responding to approver, AGENT/escalate, or clearly unrelated content.
+           | 2) If critical inputs are missing, ask up to 2 targeted questions (e.g., "Do you have the 17-character VIN?", "What is the claim number?") before routing. Prefer existing subagents/actions; do not invent capabilities.
+           | 3) Routing logic (deterministic preference):
+           |    - If dealer replies RETRY after a system error in claim submission, transition to WarrantyIntake to retry with stored data.
+           |    - If VIN provided, a specific issue is described, or user asks to start/submit a claim, transition to WarrantyIntake.
+           |    - If asking about an existing claim or providing a claim number, transition to ClaimStatusInquiry.
+           |    - If asking general warranty policy questions without a VIN, transition to WarrantyPolicyFAQ.
+           |    - If vague warranty terms (e.g., "warranty", "coverage", "prior auth") without specifics, transition to WarrantyIntake (it will guide VIN collection).
+           |    - If dealer explicitly replies GOODWILL or requests a policy exception after a Not Covered outcome, transition to GoodwillReview. A Borderline verdict alone is NOT a trigger for goodwill — only route to GoodwillReview when the dealer types GOODWILL explicitly.
+           |    - If responding to an approver's request for more information, transition to ApproverFollowUp.
+           |    - If dealer requests a human (AGENT) or indicates escalation, transition to Escalation.
+           |    - If message is unrelated to warranties/vehicles/Electra Cars, transition to off_topic.
+           | 4) For any risky/irreversible operation, only confirm intent here and defer execution to the destination subagent. Never compose a success message for claim creation without an action step executed in the same plan turn by the destination subagent.
+           | 5) Transition explicitly using the single best-matching option below.
+           | Guardrails: Do not fabricate data; rely on org data and available actions/subagents; hand off or escalate when out of scope.
+       actions:
+           go_to_WarrantyIntake: @utils.transition to @subagent.WarrantyIntake
+           go_to_ClaimStatusInquiry: @utils.transition to @subagent.ClaimStatusInquiry
+           go_to_WarrantyPolicyFAQ: @utils.transition to @subagent.WarrantyPolicyFAQ
+           go_to_GoodwillReview: @utils.transition to @subagent.GoodwillReview
+           go_to_ApproverFollowUp: @utils.transition to @subagent.ApproverFollowUp
+           go_to_Escalation: @utils.transition to @subagent.Escalation
+           go_to_off_topic: @utils.transition to @subagent.off_topic
 
-topic warranty_intake:
-   label: "Warranty Intake"
-   description: "Full warranty prior-authorization workflow: VIN lookup, data gathering, duplicate check, coverage evaluation, DTC decoding, repair estimate validation, claim creation, and AI image analysis."
-   actions:
-      Find_Vehicle_By_VIN:
-         target: "apex://FindVehicleByVin"
-         description: "Lookup Vehicle and active warranty details by VIN. Always call this first when a VIN is provided."
-         inputs:
-            vin: string
-               description: "17-character vehicle VIN"
-               is_required: True
-         outputs:
-            vehicleFound: boolean
-               description: "Whether a matching Vehicle record exists"
-               is_displayable: True
-            activeWarrantyFound: boolean
-               description: "Whether an active AssetWarranty exists for this vehicle"
-               is_displayable: True
-            vehicleId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Salesforce Vehicle record ID"
-            dealerId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Salesforce Dealer Account ID"
-            customerId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Salesforce Customer Contact/Account ID"
-            model: string
-               description: "Vehicle model name (e.g., Electra X5)"
-               is_displayable: True
-            year: integer
-               description: "Model year of the vehicle"
-               is_displayable: True
-            coverageEndDate: date
-               complex_data_type_name: "lightning__dateType"
-               description: "Date the active warranty expires"
-               is_displayable: True
-            coverageCategories: string
-               description: "Comma-separated covered part categories"
-               is_displayable: True
-            coverageMileageCap: integer
-               description: "Maximum mileage allowed under warranty"
-               is_displayable: True
-            message: string
-               description: "Human-readable status message from Apex"
-      Check_Recent_Claims:
-         target: "apex://CheckRecentClaims"
-         description: "Checks whether an open warranty claim exists for the same VIN and Part Category within the last 30 days. Prevents duplicate submission."
-         inputs:
-            vin: string
-               description: "VIN from vehicle lookup"
-               is_required: True
-            partCategory: string
-               description: "Part category selected by dealer"
-               is_required: True
-         outputs:
-            duplicateFound: boolean
-               description: "True if an open claim for same VIN and part exists within 30 days"
-               is_displayable: True
-            existingClaimNumber: string
-               description: "Claim number of the duplicate, if found"
-               is_displayable: True
-            existingClaimStatus: string
-               description: "Current status of the duplicate claim"
-               is_displayable: True
-            daysSinceSubmission: integer
-               description: "Days since the duplicate was submitted"
-               is_displayable: True
-      Evaluate_Coverage:
-         target: "apex://CoverageEngine"
-         description: "Evaluates whether a vehicle and part category are covered under an active AssetWarranty. Returns Likely, Borderline, or Not Covered."
-         inputs:
-            vehicleId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Vehicle ID from VIN lookup"
-               is_required: True
-            odometer: integer
-               description: "Current mileage reading in miles"
-               is_required: True
-            partCategory: string
-               description: "Part category being claimed"
-               is_required: True
-         outputs:
-            eligibility: string
-               description: "Coverage verdict: Likely, Borderline, or Not Covered"
-               is_displayable: True
-            rationale: string
-               description: "Explanation of the coverage decision"
-               is_displayable: True
-            coverageId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "ID of the matching AssetWarranty record"
-      Decode_Diagnostic_Code:
-         target: "apex://DecodeDiagnosticCode"
-         description: "Decodes an OBD-II or OEM Diagnostic Trouble Code. Returns OEM definition and recommended repair action."
-         inputs:
-            dtcCode: string
-               description: "OBD-II or OEM fault code (e.g., P0456)"
-               is_required: True
-            vehicleId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Vehicle ID from VIN lookup"
-         outputs:
-            dtcDescription: string
-               description: "OEM definition of the fault code"
-               is_displayable: True
-            recommendedAction: string
-               description: "Suggested repair action for this DTC"
-               is_displayable: True
-            dtcSeverity: string
-               description: "Severity level (e.g., High, Medium, Low)"
-               is_displayable: True
-            isKnownIssue: boolean
-               description: "Whether this DTC is a known recurring issue in this model"
-               is_displayable: True
-      Validate_Repair_Estimate:
-         target: "apex://ValidateRepairEstimate"
-         description: "Validates the dealer repair amount against Electra Cars SRT matrix. Returns baseline amount and whether request is within 20% of baseline."
-         inputs:
-            partCategory: string
-               description: "Part being repaired"
-               is_required: True
-            requestedAmount: number
-               description: "Dealer's estimated repair cost in USD"
-               is_required: True
-         outputs:
-            baselineAmount: number
-               description: "Electra Cars SRT standard rate for this part"
-               is_displayable: True
-            isWithinRange: boolean
-               description: "True if requested amount is within 20% of SRT baseline"
-               is_displayable: True
-            variancePercent: number
-               description: "Percentage difference from SRT baseline"
-               is_displayable: True
-            validationMessage: string
-               description: "Human-readable validation summary"
-               is_displayable: True
-      Create_Warranty_Claim:
-         target: "apex://CreateWarrantyClaim"
-         description: "Creates a new Warranty Claim record in Automotive Cloud. Routes to OEM approver queue and triggers Slack notification. Only call after dealer explicitly confirms YES."
-         inputs:
-            vin: string
-               description: "Vehicle VIN"
-               is_required: True
-            dealerId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Dealer Account ID"
-               is_required: True
-            customerId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Customer ID"
-               is_required: True
-            odometer: integer
-               description: "Current mileage"
-               is_required: True
-            partCategory: string
-               description: "Part being claimed"
-               is_required: True
-            requestedAmount: number
-               description: "Repair cost estimate in USD"
-               is_required: True
-            symptom: string
-               description: "Primary symptom description"
-               is_required: True
-            faultDate: object
-               complex_data_type_name: "lightning__dateTimeStringType"
-               description: "Date the fault first occurred"
-            repairOrderNumber: string
-               description: "Dealer's internal Repair Order number"
-            srtJustification: string
-               description: "Explanation if amount exceeds SRT baseline"
-            diagnosticCodeText: string
-               description: "Decoded DTC description from Decode_Diagnostic_Code"
-            dealerWhatsAppNumber: string
-               description: "Dealer's WhatsApp number for follow-up notifications"
-            channel: string
-               description: "Submission channel — always WhatsApp"
-         outputs:
-            claimId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Salesforce ID of the new Claim record"
-            claimNumber: string
-               description: "Human-readable claim number shown to the dealer"
-               is_displayable: True
-            status: string
-               description: "Initial status of the created claim"
-               is_displayable: True
-            slackNotificationSent: boolean
-               description: "Whether OEM approver was notified via Slack"
-               is_displayable: True
-            slaDue: object
-               complex_data_type_name: "lightning__dateTimeStringType"
-               description: "SLA deadline for OEM review (24 business hours)"
-               is_displayable: True
-            message: string
-               description: "Confirmation or error message"
-               is_displayable: True
-      Get_WhatsApp_Media_URL:
-         target: "apex://GetWhatsAppMediaUrl"
-         description: "Retrieves the URL of the latest image uploaded by the dealer in this WhatsApp session."
-         inputs:
-            messagingUserId: string
-               description: "WhatsApp session user ID for this conversation"
-         outputs:
-            imageUrl: string
-               description: "URL of the photo uploaded by dealer"
-            success: boolean
-               description: "Whether a photo was found in the session"
-               is_displayable: True
-      Analyze_Image_Damage:
-         target: "apex://ImageDamageAnalyzer"
-         description: "Invokes a Vision AI model to analyze a photo of the damaged part. Returns structural integrity assessment."
-         inputs:
-            claimId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Salesforce ID of the claim to attach the analysis to"
-            imageUrl: string
-               description: "URL from Get_WhatsApp_Media_URL"
-               is_required: True
-            partName: string
-               description: "Name or category of the part being photographed"
-               is_required: True
-         outputs:
-            analysisResult: string
-               description: "AI narrative assessment of the photo"
-               is_displayable: True
-            isDamaged: boolean
-               description: "Whether clear damage is detected in the photo"
-               is_displayable: True
-   reasoning:
-      instructions: |
-         ### ARIA WARRANTY INTAKE WORKFLOW
+subagent WarrantyIntake:
+    label: "Warranty Intake"
+    description: "Handles new warranty prior-authorization requests. Activated when a dealer provides a VIN, mentions a vehicle issue, wants to submit a claim, or asks about repair coverage for a specific vehicle."
+    reasoning:
+        instructions: ->
+            | Objective: Collect claim details and submit a prior-authorization claim when the dealer confirms.
+            | 1) Collect fields ONE AT A TIME. When the dealer provides a value, immediately persist it via its helper BEFORE any tool call: vin → {!@actions.set_variable_vin}; odometer → {!@actions.set_variable_odometer}; part_category → {!@actions.set_variable_part_category}; symptom → {!@actions.set_variable_symptom}; fault_date → {!@actions.set_variable_fault_date}; repair amount → {!@actions.set_variable_requested_amount}.
+            | 2) Run tools as inputs become available: {!@actions.tool_FindVehicleByVin} (after vin) → confirm year/model; {!@actions.tool_CheckRecentClaims} (after part_category); {!@actions.tool_EvaluateCoverage} (after odometer+part_category); {!@actions.tool_DecodeDiagnosticCode} if a DTC is provided; {!@actions.tool_ValidateRepairEstimate} (after amount). Reflect results exactly as returned; do not invent data.
+            | 3) Routing on intermediate results: if duplicate_claim_found is True, share the existing claim number and ask whether to continue or switch to ClaimStatusInquiry. If coverage_eligibility is exactly "Not Covered" (NOT "Borderline" and NOT "Likely"): DO NOT offer goodwill yet. Inform the dealer in one short sentence that standard coverage doesn't apply (e.g., "Heads up — standard warranty doesn't cover this; we'll capture full details so a manager can review for a goodwill exception."), then CONTINUE collecting the remaining required fields (fault_date, repair_order_number, requested_amount). After ALL fields are collected and ValidateRepairEstimate has run, present a concise pre-goodwill summary that includes context the manager will need: warranty status (e.g., "expired 12 months ago" or "1,200 miles past mileage cap"), repair amount, mileage, and symptom. End with: "Reply GOODWILL to submit this for manager review, or AGENT for a specialist." When the dealer replies GOODWILL, transition to {!@actions.go_to_GoodwillReview}. For "Borderline" or "Likely", proceed normally — a Borderline verdict is eligible for standard claim submission and must NEVER trigger a goodwill offer. If ValidateRepairEstimate.isWithinRange is False, ask the dealer to explain why the cost is above the SRT baseline; when they reply, IMMEDIATELY call {!@actions.set_variable_srt_justification} with their explanation text before continuing — the submission tool reads this variable.
+            | 4) When all required fields are populated (vin, dealer_id, customer_id, odometer, part_category, symptom, requested_amount), summarize the claim (year/model, VIN, part, symptom, fault date, estimate, verdict) in one concise message and ask the dealer to confirm with YES.
+            | 5) Submission (deterministic): On YES/yep/sure/confirm, FIRST call {!@actions.set_variable_user_confirmed} to set user_confirmed=True. IMMEDIATELY in the same turn, invoke {!@actions.tool_Action_Create_Warranty_Claim}. Do NOT emit any assistant text before the tool returns — the progress indicator handles UX.
+            | 6) Post-submission: if claim_number is non-empty, reply exactly: "✅ Claim Submitted! Claim #: **{!@variables.claim_number}** | OEM Approver notified | SLA: 24 business hours. 📎 To send a photo of the {!@variables.part_category} (damage shot, repair invoice, etc.), drop it right here in the chat — I'll attach it to your claim. You can also use the **Track Your Claim** page on the Electra Dealers Portal and look up *{!@variables.claim_number}*. Reply STATUS anytime to check progress." If the dealer says "new claim", "another one", "next claim", or provides a fresh VIN: IMMEDIATELY call {!@actions.set_variable_reset_after_submit} passing empty strings / False for every parameter to clear per-claim state, then restart from step 1 with the new VIN. If claim_number is empty/null, apologize and offer RETRY or AGENT. Never output a success message without a real claim_number.
+            | 7) If the dealer changes any field after confirming, re-run the matching set_variable_* helper, call {!@actions.set_variable_user_confirmed} with False to reset, and ask for re-confirmation before resubmission.
+            | 8) Post-creation photo upload: When claim_id is set AND the dealer indicates they uploaded/sent/dropped a photo, picture, image, file, document, attachment, invoice, or repair order in the chat (typical phrases: "I sent a photo", "uploaded the picture", "here is the image", "attached the invoice", or any explicit file-share signal), IMMEDIATELY call {!@actions.tool_LinkChatAttachmentToClaim}. Then reflect back the action's `message` output verbatim — it already confirms the filename and acknowledges the attachment. Do NOT ask the dealer to re-upload elsewhere if the action returned success. Only fall back to the portal upload instructions if the action's `success` is False.
+            | Guardrails: Do not fabricate data; prefer org actions and stored variables; hand off to GoodwillReview or Escalation when out of scope.
+        actions:
+            set_variable_vin: @utils.setVariables
+                description: "Store the 17-character VIN provided by the dealer into the vin variable. Call immediately when the dealer provides the VIN, BEFORE invoking tool_FindVehicleByVin."
+                with vin = ...
+            set_variable_odometer: @utils.setVariables
+                description: "Parse and store the odometer reading (numeric, strip units) into the odometer variable. Call immediately when the dealer provides the odometer."
+                with odometer = ...
+            set_variable_part_category: @utils.setVariables
+                description: "Store the part category (e.g., Battery, Engine, Drive Motor) into the part_category variable. Call immediately when the dealer identifies the part."
+                with part_category = ...
+            set_variable_symptom: @utils.setVariables
+                description: "Store the dealer's described symptom into the symptom variable. Call immediately when the dealer describes the fault."
+                with symptom = ...
+            set_variable_fault_date: @utils.setVariables
+                description: "Store the fault date (ISO format YYYY-MM-DD) into the fault_date variable. Call immediately when the dealer provides the fault date."
+                with fault_date = ...
+            set_variable_user_confirmed: @utils.setVariables
+                description: "Set user_confirmed=True when the dealer replies YES/yep/sure/confirm to the final claim summary. Call this BEFORE tool_Action_Create_Warranty_Claim in the same turn. Also call with False to reset if the dealer modifies any required field after confirmation."
+                with user_confirmed = ...
+            tool_FindVehicleByVin: @actions.FindVehicleByVin
+                available when @variables.vin is not None and @variables.vin != ""
+                with vin = @variables.vin
+                set @variables.vehicle_id = @outputs.vehicleId
+                set @variables.vehicle_model = @outputs.vehicleModel
+                set @variables.vehicle_year = @outputs.year
+                set @variables.customer_id = @outputs.customerId
+                set @variables.dealer_id = @outputs.dealerId
+            tool_CheckRecentClaims: @actions.CheckRecentClaims
+                available when @variables.vin is not None and @variables.vin != "" and @variables.part_category is not None
+                with vin = @variables.vin
+                with partCategory = @variables.part_category
+                set @variables.duplicate_claim_found = @outputs.duplicateFound
+                set @variables.duplicate_claim_number = @outputs.existingClaimNumber
+            tool_EvaluateCoverage: @actions.EvaluateCoverage
+                available when @variables.vehicle_id is not None and @variables.odometer is not None and @variables.part_category is not None
+                with vehicleId = @variables.vehicle_id
+                with odometer = @variables.odometer
+                with partCategory = @variables.part_category
+                set @variables.coverage_eligibility = @outputs.eligibility
+                set @variables.coverage_rationale = @outputs.rationale
+            tool_DecodeDiagnosticCode: @actions.DecodeDiagnosticCode
+                with dtcCode = ...
+                with vehicleId = @variables.vehicle_id
+                set @variables.diagnostic_code_description = @outputs.dtcDescription
+            set_variable_requested_amount: @utils.setVariables
+                description: "Parse and store the dealer's numeric repair amount (e.g., '$1,250' or '1250.00') into the requested_amount variable. Call immediately when the dealer provides the repair estimate."
+                with requested_amount = ...
+            tool_ValidateRepairEstimate: @actions.ValidateRepairEstimate
+                available when @variables.requested_amount is not None and @variables.part_category is not None
+                with partCategory = @variables.part_category
+                with requestedAmount = @variables.requested_amount
+                set @variables.srt_baseline_amount = @outputs.baselineAmount
+                set @variables.srt_is_within_range = @outputs.isWithinRange
+            tool_Action_Create_Warranty_Claim: @actions.Action_Create_Warranty_Claim
+                available when @variables.user_confirmed == True and @variables.vin is not None and @variables.vin != "" and @variables.dealer_id is not None and @variables.customer_id is not None and @variables.part_category is not None and @variables.requested_amount is not None and @variables.symptom is not None and @variables.odometer is not None
+                with vin = @variables.vin
+                with dealerId = @variables.dealer_id
+                with customerId = @variables.customer_id
+                with odometer = @variables.odometer
+                with partCategory = @variables.part_category
+                with requestedAmount = @variables.requested_amount
+                with symptom = @variables.symptom
+                with faultDate = @variables.fault_date
+                with diagnosticCodeText = @variables.diagnostic_code_description
+                with srtJustification = @variables.srt_justification
+                with channel = "Web Chat"
+                with authorizationType = "Prior Authorization"
+                set @variables.claim_id = @outputs.claimId
+                set @variables.claim_number = @outputs.claimNumber
+                set @variables.claim_status = @outputs.status
+                set @variables.slack_notified = @outputs.slackNotificationSent
+            tool_LinkChatAttachmentToClaim: @actions.LinkChatAttachmentToClaim
+                available when @variables.claim_id is not None and @variables.claim_id != ""
+                with claimId = @variables.claim_id
+                with messagingSessionId = @variables.RoutableId
+                set @variables.image_url = @outputs.filePublicUrl
+            set_variable_srt_justification: @utils.setVariables
+                description: "Store the dealer's written justification when their repair estimate is >20% above the SRT baseline. Call IMMEDIATELY when the dealer explains why their cost is higher, BEFORE tool_Action_Create_Warranty_Claim. The submission tool reads this variable to attach the justification for approver review."
+                with srt_justification = ...
+            set_variable_reset_after_submit: @utils.setVariables
+                description: "Clear all per-claim variables after a successful submission so the dealer can start a fresh claim in the same chat session. Call ONLY after claim_number is confirmed (Step 6 complete) and the dealer says 'new claim' or 'another one'. Pass empty values for every mutable claim field."
+                with vin = ...
+                with vehicle_id = ...
+                with vehicle_model = ...
+                with odometer = ...
+                with part_category = ...
+                with symptom = ...
+                with fault_date = ...
+                with repair_order_number = ...
+                with requested_amount = ...
+                with diagnostic_code_description = ...
+                with srt_justification = ...
+                with coverage_eligibility = ...
+                with claim_id = ...
+                with claim_number = ...
+                with user_confirmed = ...
+                with duplicate_claim_found = ...
+                with duplicate_claim_number = ...
+            go_to_GoodwillReview: @utils.transition to @subagent.GoodwillReview
+            go_to_Escalation: @utils.transition to @subagent.Escalation
 
-         **STEP 1 — VIN LOOKUP**
-         When the dealer provides a VIN and vehicle_lookup_done is False:
-         - Call Find_Vehicle_By_VIN with the provided vin.
-         - Store vehicleId to vehicle_id, dealerId to dealer_id, customerId to customer_id, model to vehicle_model, year to vehicle_year.
-         - If vehicleFound is False: clear vin, ask dealer to re-check the 17-character VIN.
-         - If vehicleFound is True: set vehicle_lookup_done = True. Confirm: "Vehicle Located! {vehicle_year} {vehicle_model}. Warranty active: {activeWarrantyFound}. Coverage expires: {coverageEndDate}."
-         - If vin is empty: ask "Please share the vehicle VIN to get started."
 
-         **STEP 2 — DATA GATHERING**
-         After vehicle_lookup_done, collect ONE field at a time:
-         - If odometer is 0: ask for current Odometer reading in miles.
-         - If odometer is set but part_category is empty: ask "Which Part Category is involved? (Engine, Battery, Drive Motor, HVAC, etc.)"
-         - If part_category is set but fault_date is empty: ask "When did the fault first occur?"
-         - If fault_date is set but repair_order_number is empty: ask "What is the Repair Order (RO) number?"
+    actions:
+        FindVehicleByVin:
+            description: "Looks up a vehicle and its active warranty details by VIN. Call this first whenever a dealer provides a VIN."
+            label: "Find Vehicle By VIN"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Looking up vehicle..."
+            target: "apex://FindVehicleByVin"
+            inputs:
+                "vin": string
+                    description: "17-character Vehicle Identification Number provided by the dealer."
+                    label: "VIN"
+                    is_required: True
+                    is_user_input: True
+            outputs:
+                "vehicleFound": boolean
+                    description: "Whether a matching Vehicle record exists."
+                    label: "Vehicle Found"
+                    is_displayable: True
+                    filter_from_agent: False
+                "activeWarrantyFound": boolean
+                    description: "Whether an active AssetWarranty exists for this vehicle."
+                    label: "Active Warranty Found"
+                    is_displayable: True
+                    filter_from_agent: False
+                "vehicleId": object
+                    description: "Salesforce Vehicle record ID."
+                    label: "Vehicle ID"
+                    is_displayable: False
+                    filter_from_agent: True
+                    complex_data_type_name: "lightning__recordIdType"
+                "dealerId": object
+                    description: "Salesforce Dealer Account ID."
+                    label: "Dealer ID"
+                    is_displayable: False
+                    filter_from_agent: True
+                    complex_data_type_name: "lightning__recordIdType"
+                "customerId": object
+                    description: "Salesforce Customer Contact/Account ID."
+                    label: "Customer ID"
+                    is_displayable: False
+                    filter_from_agent: True
+                    complex_data_type_name: "lightning__recordIdType"
+                "vehicleModel": string
+                    description: "Vehicle model name (e.g., Electra X5)."
+                    label: "Vehicle Model"
+                    is_displayable: True
+                    filter_from_agent: False
+                "year": object
+                    description: "Model year of the vehicle."
+                    label: "Year"
+                    is_displayable: True
+                    filter_from_agent: False
+                    complex_data_type_name: "lightning__integerType"
+                "coverageEndDate": object
+                    description: "Date the active warranty expires."
+                    label: "Coverage End Date"
+                    is_displayable: True
+                    filter_from_agent: False
+                    complex_data_type_name: "lightning__dateType"
+                "coverageCategories": string
+                    description: "Comma-separated list of covered part categories."
+                    label: "Coverage Categories"
+                    is_displayable: True
+                    filter_from_agent: False
+                "message": string
+                    description: "Human-readable status message from the action."
+                    label: "Message"
+                    is_displayable: True
+                    filter_from_agent: False
+        CheckRecentClaims:
+            description: "Checks whether an open claim already exists for the same VIN and part category within the last 30 days. Call after part category is known to prevent duplicate submissions."
+            label: "Check Recent Claims"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Checking for duplicate claims..."
+            target: "apex://CheckRecentClaims"
+            inputs:
+                "vin": string
+                    description: "17-character vehicle VIN from the VIN lookup step."
+                    label: "VIN"
+                    is_required: True
+                    is_user_input: False
+                "partCategory": string
+                    description: "Part category selected by the dealer."
+                    label: "Part Category"
+                    is_required: True
+                    is_user_input: False
+            outputs:
+                "duplicateFound": boolean
+                    description: "True if an open claim for the same VIN and part exists within 30 days."
+                    label: "Duplicate Found"
+                    is_displayable: True
+                    filter_from_agent: False
+                "existingClaimNumber": string
+                    description: "Claim number of the duplicate, if found."
+                    label: "Existing Claim Number"
+                    is_displayable: True
+                    filter_from_agent: False
+                "existingClaimStatus": string
+                    description: "Current status of the duplicate claim."
+                    label: "Existing Claim Status"
+                    is_displayable: True
+                    filter_from_agent: False
+                "daysSinceSubmission": object
+                    description: "Number of days since the duplicate claim was submitted."
+                    label: "Days Since Submission"
+                    is_displayable: True
+                    filter_from_agent: False
+                    complex_data_type_name: "lightning__integerType"
+        EvaluateCoverage:
+            description: "Evaluates warranty coverage eligibility based on vehicle, odometer, and part category. Returns Likely, Borderline, or Not Covered. Call after odometer and part category are collected."
+            label: "Evaluate Coverage"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Evaluating warranty coverage..."
+            target: "apex://CoverageEngine"
+            inputs:
+                "vehicleId": object
+                    description: "Salesforce Vehicle record ID from the VIN lookup."
+                    label: "Vehicle ID"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__recordIdType"
+                "odometer": object
+                    description: "Current odometer reading in miles provided by the dealer."
+                    label: "Odometer"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__integerType"
+                "partCategory": string
+                    description: "Part category being claimed."
+                    label: "Part Category"
+                    is_required: True
+                    is_user_input: False
+            outputs:
+                "eligibility": string
+                    description: "Coverage verdict: Likely, Borderline, or Not Covered."
+                    label: "Eligibility"
+                    is_displayable: True
+                    filter_from_agent: False
+                "rationale": string
+                    description: "Explanation of the coverage decision including dates and mileage."
+                    label: "Rationale"
+                    is_displayable: True
+                    filter_from_agent: False
+                "coverageId": object
+                    description: "Salesforce ID of the matching AssetWarranty record."
+                    label: "Coverage ID"
+                    is_displayable: False
+                    filter_from_agent: True
+                    complex_data_type_name: "lightning__recordIdType"
+        DecodeDiagnosticCode:
+            description: "Decodes an OBD-II or OEM fault code into a human-readable description and recommended action. Call when the dealer provides a DTC code."
+            label: "Decode Diagnostic Code"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Decoding diagnostic code..."
+            target: "apex://DecodeDiagnosticCode"
+            inputs:
+                "dtcCode": string
+                    description: "OBD-II or OEM fault code provided by the dealer (e.g., P0456, P0A80)."
+                    label: "DTC Code"
+                    is_required: True
+                    is_user_input: True
+                "vehicleId": object
+                    description: "Salesforce Vehicle record ID from the VIN lookup."
+                    label: "Vehicle ID"
+                    is_required: False
+                    is_user_input: False
+                    complex_data_type_name: "lightning__recordIdType"
+            outputs:
+                "dtcDescription": string
+                    description: "OEM-verified description of what the fault code means."
+                    label: "DTC Description"
+                    is_displayable: True
+                    filter_from_agent: False
+                "recommendedAction": string
+                    description: "OEM-recommended repair action for this DTC code."
+                    label: "Recommended Action"
+                    is_displayable: True
+                    filter_from_agent: False
+                "dtcSeverity": string
+                    description: "Severity level: Critical, High, Medium, or Low."
+                    label: "DTC Severity"
+                    is_displayable: True
+                    filter_from_agent: False
+                "isKnownIssue": boolean
+                    description: "Whether this DTC is associated with a known TSB or recall campaign."
+                    label: "Is Known Issue"
+                    is_displayable: True
+                    filter_from_agent: False
+        ValidateRepairEstimate:
+            description: "Validates the dealer repair amount against the Electra Cars SRT matrix. Flags estimates more than 20% above baseline for dealer justification. Call after the dealer provides a repair amount."
+            label: "Validate Repair Estimate"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Validating repair estimate..."
+            target: "apex://ValidateRepairEstimate"
+            inputs:
+                "partCategory": string
+                    description: "Part category being repaired."
+                    label: "Part Category"
+                    is_required: True
+                    is_user_input: False
+                "requestedAmount": number
+                    description: "Dealer's estimated repair cost in USD."
+                    label: "Requested Amount"
+                    is_required: True
+                    is_user_input: True
+            outputs:
+                "baselineAmount": number
+                    description: "Electra Cars SRT standard rate for this part category."
+                    label: "Baseline Amount"
+                    is_displayable: True
+                    filter_from_agent: False
+                "isWithinRange": boolean
+                    description: "True if the requested amount is within 20% of the SRT baseline."
+                    label: "Is Within Range"
+                    is_displayable: True
+                    filter_from_agent: False
+                "variancePercent": number
+                    description: "Percentage difference between requested amount and SRT baseline."
+                    label: "Variance Percent"
+                    is_displayable: True
+                    filter_from_agent: False
+                "validationMessage": string
+                    description: "Human-readable validation summary shown to the Dealer."
+                    label: "Validation Message"
+                    is_displayable: True
+                    filter_from_agent: False
+        GetWhatsAppMediaURL:
+            description: "Retrieves the URL of the latest image uploaded by the dealer in this chat session. Call when the dealer sends a photo after claim creation."
+            label: "Get Chat Media URL"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Retrieving your photo..."
+            target: "apex://GetWhatsAppMediaUrl"
+            inputs:
+                "messagingUserId": string
+                    description: "Messaging End User ID for this conversation session."
+                    label: "Messaging User ID"
+                    is_required: False
+                    is_user_input: False
+            outputs:
+                "imageUrl": string
+                    description: "URL of the photo uploaded by the dealer in the current session."
+                    label: "Image URL"
+                    is_displayable: False
+                    filter_from_agent: True
+                "success": boolean
+                    description: "Whether a photo was successfully found in the session."
+                    label: "Success"
+                    is_displayable: True
+                    filter_from_agent: False
+        AnalyzeImageDamage:
+            description: "Invokes a Vision AI model to analyze a photo of the damaged part. Returns a structural integrity assessment. Call after retrieving the media URL from GetChatMediaURL."
+            label: "Analyze Image Damage"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Analyzing damage photo with AI..."
+            target: "apex://ImageDamageAnalyzer"
+            inputs:
+                "claimId": object
+                    description: "Salesforce ID of the claim to attach the image analysis to."
+                    label: "Claim ID"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__recordIdType"
+                "imageUrl": string
+                    description: "URL of the damage photo from GetChatMediaURL. Optional — when blank the analyzer still produces a textual assessment based on partName but skips photo distribution."
+                    label: "Image URL"
+                    is_required: False
+                    is_user_input: False
+                "partName": string
+                    description: "Name or category of the part being photographed."
+                    label: "Part Name"
+                    is_required: True
+                    is_user_input: False
+            outputs:
+                "analysisResult": string
+                    description: "AI narrative assessment of the photo including structural integrity findings."
+                    label: "Analysis Result"
+                    is_displayable: True
+                    filter_from_agent: False
+                "isDamaged": boolean
+                    description: "Whether clear damage is detected in the photo."
+                    label: "Is Damaged"
+                    is_displayable: True
+                    filter_from_agent: False
+        Action_Create_Warranty_Claim:
+            description: |
+                Creates a new Warranty Claim record in Automotive Cloud and notifies the OEM approver via Slack. ONLY call this after the dealer has explicitly confirmed YES to the claim summary (user_confirmed must be True). This action runs with elevated permissions to create claims on behalf of the dealer.
+            label: "Action_Create_Warranty_Claim"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Submitting your warranty claim..."
+            source: "Action_Create_Warranty_Claim"
+            target: "flow://Action_Create_Warranty_Claim"
+                
+            inputs:
+                "authorizationType": string
+                    description: |
+                      Authorization type
+                    label: "authorizationType"
+                    is_required: False
+                    is_user_input: False
+                "channel": string
+                    description: |
+                      Submission channel — always pass Web.
+                    label: "channel"
+                    is_required: False
+                    is_user_input: False
+                "customerId": string
+                    description: |
+                      Salesforce Customer Contact/Account ID from the VIN lookup.
+                    label: "customerId"
+                    is_required: True
+                    is_user_input: False
+                "dealerId": string
+                    description: |
+                      Salesforce Dealer Account ID from the VIN lookup.
+                    label: "dealerId"
+                    is_required: True
+                    is_user_input: False
+                "dealerWhatsAppNumber": string
+                    description: |
+                      dealerWhatsAppNumber
+                    label: "dealerWhatsAppNumber"
+                    is_required: False
+                    is_user_input: False
+                "diagnosticCodeText": string
+                    description: |
+                      Decoded DTC description from the Decode Diagnostic Code action.
+                    label: "diagnosticCodeText"
+                    is_required: False
+                    is_user_input: False
+                "faultDate": date
+                    description: |
+                      Date the fault first occurred.
+                    label: "faultDate"
+                    is_required: False
+                    is_user_input: False
+                    complex_data_type_name: "lightning__dateType"
+                "odometer": number
+                    description: |
+                      Current odometer reading in miles.
+                    label: "odometer"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__numberType"
+                "partCategory": string
+                    description: |
+                      Part category being claimed.
+                    label: "partCategory"
+                    is_required: True
+                    is_user_input: False
+                "partId": string
+                    description: |
+                      partId
+                    label: "partId"
+                    is_required: False
+                    is_user_input: False
+                "requestedAmount": number
+                    description: |
+                      Repair cost estimate in USD.
+                    label: "requestedAmount"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__numberType"
+                "srtJustification": string
+                    description: |
+                      srtJustification
+                    label: "srtJustification"
+                    is_required: False
+                    is_user_input: False
+                "symptom": string
+                    description: |
+                      Primary symptom description provided by the dealer.
+                    label: "symptom"
+                    is_required: True
+                    is_user_input: False
+                "vin": string
+                    description: |
+                      17-character Vehicle Identification Number.
+                    label: "vin"
+                    is_required: True
+                    is_user_input: False
+                
+            outputs:
+                "assetWarrantyId": string
+                    description: |
+                      assetWarrantyId
+                    label: "assetWarrantyId"
+                    is_displayable: False
+                    filter_from_agent: False
+                "claimId": string
+                    description: |
+                      Salesforce ID of the newly created Claim record.
+                    label: "claimId"
+                    is_displayable: False
+                    filter_from_agent: True
+                "claimItemId": string
+                    description: |
+                      ClaimitemId
+                    label: "claimItemId"
+                    is_displayable: False
+                    filter_from_agent: False
+                "claimNumber": string
+                    description: |
+                      Human-readable claim number shown to the dealer (e.g., WC-00042).
+                    label: "claimNumber"
+                    is_displayable: True
+                    filter_from_agent: False
+                "eligibility": string
+                    description: |
+                      eligibility
+                    label: "eligibility"
+                    is_displayable: False
+                    filter_from_agent: False
+                "rationale": string
+                    description: |
+                      rationale
+                    label: "rationale"
+                    is_displayable: False
+                    filter_from_agent: False
+                "slackNotificationSent": boolean
+                    description: |
+                      Whether the OEM approver was notified via Slack.
+                    label: "slackNotificationSent"
+                    is_displayable: True
+                    filter_from_agent: False
+                "status": string
+                    description: |
+                      Initial status of the created claim.
+                    label: "status"
+                    is_displayable: True
+                    filter_from_agent: False
+                "vehicleId_out": string
+                    description: |
+                      vehicleId_Out
+                    label: "vehicleId_out"
+                    is_displayable: False
+                    filter_from_agent: False
+        LinkChatAttachmentToClaim:
+            description: "Bridges a file the dealer dropped into Web Chat over to the Claim record so the OEM approver can review it. Call after the dealer mentions sending a photo, picture, or document for an existing claim. Requires claimId; messagingSessionId is auto-passed from the active conversation."
+            label: "Link Chat Attachment To Claim"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Attaching your file to the claim..."
+            target: "apex://LinkChatAttachmentToClaim"
+            inputs:
+                "claimId": object
+                    description: "Salesforce Id of the Claim to attach the chat upload to."
+                    label: "Claim Id"
+                    is_required: True
+                    is_user_input: False
+                    complex_data_type_name: "lightning__recordIdType"
+                "messagingSessionId": string
+                    description: "Id of the messaging session whose latest upload should be linked. Pass RoutableId from the active conversation."
+                    label: "Messaging Session Id"
+                    is_required: False
+                    is_user_input: False
+            outputs:
+                "success": boolean
+                    description: "True when at least one file was successfully linked to the Claim."
+                    label: "Success"
+                    is_displayable: True
+                    filter_from_agent: False
+                "fileTitle": string
+                    description: "Filename of the most recent attachment that was linked."
+                    label: "File Title"
+                    is_displayable: True
+                    filter_from_agent: False
+                "filePublicUrl": string
+                    description: "Public URL of the attached file the agent can echo back to the dealer."
+                    label: "File Public URL"
+                    is_displayable: False
+                    filter_from_agent: True
+                "filesLinked": object
+                    description: "Count of new ContentDocumentLinks created."
+                    label: "Files Linked"
+                    is_displayable: True
+                    filter_from_agent: False
+                    complex_data_type_name: "lightning__integerType"
+                "message": string
+                    description: "Human-readable status message the agent surfaces to the dealer."
+                    label: "Message"
+                    is_displayable: True
+                    filter_from_agent: False
 
-         **STEP 3 — DUPLICATE CHECK**
-         When part_category is set and duplicate_check_done is False:
-         - Call Check_Recent_Claims with vin and partCategory.
-         - Store duplicateFound to duplicate_claim_found, existingClaimNumber to duplicate_claim_number. Set duplicate_check_done = True.
-         - If duplicate_claim_found is True: warn "An open claim ({duplicate_claim_number}) already exists for this VIN and part. Reply EXISTING to update it, or NEW to file separately."
-
-         **STEP 4 — COVERAGE EVALUATION**
-         When duplicate_check_done is True, odometer is set, part_category is set, and coverage_eval_done is False:
-         - Call Evaluate_Coverage with vehicleId, odometer, partCategory.
-         - Store eligibility to coverage_eligibility, rationale to coverage_rationale. Set coverage_eval_done = True.
-         - If eligibility is "Not Covered": set coverage_is_denied = True. Say "Coverage Verdict: Not Covered. {coverage_rationale}. Reply GOODWILL to request a goodwill review, or AGENT for a specialist."
-         - If eligibility is "Likely": say "Coverage Verdict: Likely Covered! {coverage_rationale}. Does this vehicle have a Diagnostic Trouble Code (DTC)? Share it or type NONE to skip."
-         - If eligibility is "Borderline": say "Coverage Verdict: Borderline — Needs Manual Review. {coverage_rationale}. Does this vehicle have a DTC code? Type NONE to skip."
-
-         **STEP 5 — DTC DECODER (optional)**
-         When coverage_eval_done is True, coverage_is_denied is False, diagnostic_code is set (and not "NONE"), and dtc_decoded is False:
-         - Call Decode_Diagnostic_Code with dtcCode and vehicleId.
-         - Store dtcDescription to diagnostic_code_description. Set dtc_decoded = True.
-         - Confirm: "DTC {diagnostic_code} Decoded: {diagnostic_code_description}. This will be attached to your claim."
-         - If symptom is empty: ask "Please describe the primary symptom observed."
-
-         **STEP 6 — REPAIR AMOUNT**
-         When symptom is set and requested_amount is 0:
-         - Ask "What is the estimated Repair Amount in USD?"
-
-         **STEP 7 — SRT VALIDATION**
-         When symptom and requested_amount are set and estimate_validated is False:
-         - Call Validate_Repair_Estimate with partCategory and requestedAmount.
-         - Store baselineAmount to srt_baseline_amount, isWithinRange to srt_is_within_range. Set estimate_validated = True.
-         - If isWithinRange is False: say "The standard estimate for {part_category} is around ${srt_baseline_amount}. Your request of ${requested_amount} is above that baseline. Please briefly explain the reason."
-
-         **STEP 8 — PRE-SUBMISSION SUMMARY**
-         When estimate_validated is True and claim_confirmed_by_dealer is False:
-         - If srt_is_within_range is True OR srt_justification is set: present summary and ask YES/NO.
-         - Summary: "Claim Summary — Please Confirm: Vehicle: {vehicle_year} {vehicle_model} | VIN: {vin} | Part: {part_category} | RO#: {repair_order_number} | Symptom: {symptom} | Amount: ${requested_amount} | Coverage: {coverage_eligibility}. Reply YES to submit or NO to make changes."
-         - If srt_is_within_range is False and srt_justification is empty: ask for cost justification.
-
-         **STEP 9 — CLAIM CREATION**
-         When claim_confirmed_by_dealer is True and claim_creation_done is False:
-         - Call Create_Warranty_Claim with all collected data and channel = "WhatsApp".
-         - Store claimId to claim_id, claimNumber to claim_number, slackNotificationSent to slack_notified. Set claim_creation_done = True.
-         - If claimId is empty: set claim_creation_done = False. Say "Error creating claim. Type RETRY to try again."
-         - If claimId is set: set photo_requested = True. Say "Claim Submitted! Claim Number: {claim_number}. OEM Approver Notified: {slack_notified}. Review within 24 business hours. Please send a photo of the damaged {part_category} to speed up review."
-
-         **STEP 10 — IMAGE ANALYSIS**
-         When photo_requested is True and image_url is empty and image_analyzed is False:
-         - Call Get_WhatsApp_Media_URL with messagingUserId.
-         - Store imageUrl to image_url.
-         - If success is False: say "No photo received yet. Please send the image when ready."
-
-         When image_url is set and image_analyzed is False:
-         - Call Analyze_Image_Damage with claimId, partName, imageUrl.
-         - Store analysisResult to damage_analysis. Set image_analyzed = True.
-         - Confirm: "AI Image Analysis Complete: {damage_analysis}. Evidence attached to your claim for OEM review."
-
-      actions:
-         go_to_goodwill: @utils.transition to @topic.goodwill_review
-         go_to_escalation: @utils.transition to @topic.escalation
-
-topic claim_status_inquiry:
+subagent ClaimStatusInquiry:
    label: "Claim Status Inquiry"
-   description: "Handles dealers following up on a previously submitted claim. Triggered when dealer asks about status or provides a claim number."
-   actions:
-      Get_Claim_Status:
-         target: "apex://GetClaimStatus"
-         description: "Retrieves current status, assigned approver, SLA deadline, and approver comment for a submitted claim."
-         inputs:
-            claimNumber: string
-               description: "Claim number to look up"
-            vin: string
-               description: "VIN as alternative lookup key"
-         outputs:
-            claimNumber: string
-               description: "Confirmed claim number"
-               is_displayable: True
-            claimStatus: string
-               description: "Current status of the claim"
-               is_displayable: True
-            assignedApprover: string
-               description: "Name of the adjuster assigned to this claim"
-               is_displayable: True
-            slaDueDate: object
-               complex_data_type_name: "lightning__dateTimeStringType"
-               description: "SLA deadline for review"
-               is_displayable: True
-            approverComment: string
-               description: "Latest note from the approver"
-               is_displayable: True
-            nextStep: string
-               description: "Recommended next action"
-               is_displayable: True
-            claimFound: boolean
-               description: "Whether the claim was found"
+   description: "Handles dealer requests to check the status of an existing claim. Activated when dealer asks about a claim status, mentions a claim number, or asks 'where is my claim'."
    reasoning:
-      instructions: |
-         The dealer wants to check a claim status.
+       instructions: ->
+           | Objective: Retrieve and present the current status of an existing claim, and surface any pending clarification request from the OEM approver so the dealer can respond in the same chat.
+           | 1) Identify goal and inputs: Need claim_number or VIN to search. Use {!@actions.GetClaimStatus}.
+           | 2) If missing both, ask up to 2 concise questions to obtain the claim number or VIN; otherwise proceed.
+           | 3) Invoke GetClaimStatus with the provided key(s); capture status, assigned approver, SLA due, next step, and any approver comment.
+           | 4) MANDATORY when claim_status is "Needs More Info": GetClaimStatus already returns the OEM approver's question in its clarificationQuestion output field — you do NOT need a second action call. Quote @outputs.clarificationQuestion verbatim to the dealer using this format: "The OEM approver asked: '<clarificationQuestion>'. Please reply with your response and I'll send it to the approver." Do NOT substitute approverComment for the question — approverComment is an internal eligibility note, NOT the question. If clarificationQuestion is empty/blank, say "The approver flagged this for more info but no specific question is on file. Please share any details that may help." When the dealer provides a response, transition to the ApproverFollowUp subagent so it can call SubmitClarificationResponse with the captured claim_number and the dealer's response text.
+           | 5) For all other statuses, reflect back only what the action returns (claim number, status, approver, SLA due, next step, approver note if present). If not found, state no record found and request re-check.
+           | 6) Risky/irreversible: None in this subagent itself; the actual response submission happens in ApproverFollowUp.
+           | 7) Completion: Provide an outcome-focused summary and offer next steps (REVIEW to start a new claim via intake, or AGENT to escalate).
+           | Guardrails: Do not fabricate data; prefer org data and actions; hand off or escalate when out of scope.
+       actions:
+           GetClaimStatus: @actions.GetClaimStatus
+               with claimNumber = ...
+               with vin = ...
+               set @variables.claim_number = @outputs.claimNumber
+               set @variables.claim_status = @outputs.claimStatus
+           GetPendingClarification: @actions.GetPendingClarification
+               available when @variables.claim_status == "Needs More Info"
+               with claimNumber = @variables.claim_number
+               with vin = ...
+           go_to_ApproverFollowUp: @utils.transition to @subagent.ApproverFollowUp
+           go_to_WarrantyIntake: @utils.transition to @subagent.WarrantyIntake
+           go_to_Escalation: @utils.transition to @subagent.Escalation
 
-         If claim_number and vin are both empty:
-         - Ask: "To check a claim status, please provide the Claim Number (e.g., CLM-00042) or VIN."
+   actions:
+      GetClaimStatus:
+          description: "Retrieves current claim status, assigned approver, and SLA deadline for a submitted claim. Call when the dealer asks about an existing claim by claim number or VIN."
+          label: "Get Claim Status"
+          require_user_confirmation: False
+          include_in_progress_indicator: True
+          progress_indicator_message: "Looking up your claim..."
+          target: "apex://GetClaimStatus"
+          inputs:
+              "claimNumber": string
+                  description: "Claim number to look up (e.g., WC-00042)."
+                  label: "Claim Number"
+                  is_required: False
+                  is_user_input: True
+              "vin": string
+                  description: "VIN as an alternative lookup key."
+                  label: "VIN"
+                  is_required: False
+                  is_user_input: True
+          outputs:
+              "claimNumber": string
+                  description: "Confirmed claim number."
+                  label: "Claim Number"
+                  is_displayable: True
+                  filter_from_agent: False
+              "claimStatus": string
+                  description: "Current status of the claim."
+                  label: "Claim Status"
+                  is_displayable: True
+                  filter_from_agent: False
+              "assignedApprover": string
+                  description: "Name of the OEM adjuster assigned to this claim."
+                  label: "Assigned Approver"
+                  is_displayable: True
+                  filter_from_agent: False
+              "slaDueDate": object
+                  description: "SLA deadline for review."
+                  label: "SLA Due Date"
+                  is_displayable: True
+                  filter_from_agent: False
+                  complex_data_type_name: "lightning__dateTimeStringType"
+              "approverComment": string
+                  description: "Latest note or comment from the approver."
+                  label: "Approver Comment"
+                  is_displayable: True
+                  filter_from_agent: False
+              "nextStep": string
+                  description: "Recommended next action for the dealer."
+                  label: "Next Step"
+                  is_displayable: True
+                  filter_from_agent: False
+              "claimFound": boolean
+                  description: "Whether the claim was found."
+                  label: "Claim Found"
+                  is_displayable: False
+                  filter_from_agent: True
+              "clarificationQuestion": string
+                  description: "When claim status is 'Needs More Info', the OEM approver's actual clarification question that the dealer must answer. Empty for all other statuses. Display verbatim to the dealer."
+                  label: "Clarification Question"
+                  is_displayable: True
+                  filter_from_agent: False
 
-         If claim_number or vin is provided:
-         - Call Get_Claim_Status with claimNumber and vin.
-         - If claimFound is False: say "No claim found for that number/VIN. Please double-check and try again."
-         - If claimFound is True: display "{claimNumber} | Status: {claimStatus} | Approver: {assignedApprover} | SLA Due: {slaDueDate} | Next Step: {nextStep}"
-         - If approverComment is set: add "Latest approver note: {approverComment}"
-         - Offer: "Reply REVIEW to start a new claim, or AGENT to speak with a specialist."
+      GetPendingClarification:
+          description: "MANDATORY follow-up after GetClaimStatus when claimStatus is 'Needs More Info'. Returns the OEM approver's actual clarification question (clarificationQuestion) which is stored separately from approverComment. The dealer-visible reply MUST quote clarificationQuestion verbatim. Do NOT skip this action; do NOT substitute approverComment as the question."
+          label: "Get Pending Clarification"
+          require_user_confirmation: False
+          include_in_progress_indicator: True
+          progress_indicator_message: "Fetching the approver's question..."
+          target: "apex://GetPendingClarification"
+          inputs:
+              "claimNumber": string
+                  description: "Claim number to look up (e.g., WC-00042)."
+                  label: "Claim Number"
+                  is_required: False
+                  is_user_input: False
+              "vin": string
+                  description: "VIN as an alternative lookup key."
+                  label: "VIN"
+                  is_required: False
+                  is_user_input: False
+          outputs:
+              "claimNumber": string
+                  description: "Confirmed claim number."
+                  label: "Claim Number"
+                  is_displayable: True
+                  filter_from_agent: False
+              "hasPendingClarification": boolean
+                  description: "True when the claim is in Needs More Info and a question is on file."
+                  label: "Has Pending Clarification"
+                  is_displayable: False
+                  filter_from_agent: False
+              "clarificationQuestion": string
+                  description: "The OEM approver clarification question for the dealer to answer."
+                  label: "Clarification Question"
+                  is_displayable: True
+                  filter_from_agent: False
+              "claimStatus": string
+                  description: "Current status of the claim."
+                  label: "Claim Status"
+                  is_displayable: True
+                  filter_from_agent: False
+              "message": string
+                  description: "Result message for the agent to relay."
+                  label: "Message"
+                  is_displayable: True
+                  filter_from_agent: False
 
-      actions:
-         go_to_intake: @utils.transition to @topic.warranty_intake
-         go_to_escalation: @utils.transition to @topic.escalation
-
-topic warranty_policy_faq:
+subagent WarrantyPolicyFAQ:
    label: "Warranty Policy FAQ"
-   description: "Answers dealer questions about Electra Cars warranty coverage rules, exclusions, and claim procedures."
+   description: "Answers dealer questions about Electra Cars warranty coverage rules, exclusions, mileage limits, or claim procedures — without a specific VIN or vehicle."
    reasoning:
-      instructions: |
-         Answer policy questions based on Electra Cars warranty rules:
-         - Standard warranty: 4 years / 50,000 miles (whichever comes first).
-         - Powertrain (Engine, Transmission, Drive Motor): 5 years / 60,000 miles.
-         - EV Battery extended warranty: 8 years / 100,000 miles.
-         - Covered categories: Engine, Transmission, Drive Motor, HVAC, Suspension, Brake System, Electrical System, Charging System, Infotainment.
-         - Battery pack covered separately under the EV Battery extended warranty.
-         - Wear items (brake pads, tires, wipers) are NOT covered.
-         - Claim SLA: OEM approves or rejects within 24 business hours from submission.
-         - Goodwill exceptions require manager approval — dealer replies GOODWILL to request.
-         - Auto-approval criteria: Eligibility = Likely, Cost <= $500, AI Confidence >= 90%, Dealer Trust Score >= 75.
+       instructions: ->
+           | Objective: Provide concise, policy-level answers and guide the dealer to next steps.
+           | 1) Identify goal and inputs: Clarify the specific policy question. VIN is not required here.
+           | 2) If the question is ambiguous, ask up to 2 targeted clarifiers; otherwise proceed.
+           | 3) Select content to present from known policy guidelines (standard 4y/50k; powertrain 5y/60k; EV battery 8y/100k; covered categories; common exclusions; SLA 24 business hours; goodwill by manager approval). Do not add rules beyond those stated.
+           | 4) Verify and reflect only policy facts; do not invent limits or criteria. If unsure, state limits of available information.
+           | 5) Risky/irreversible: None; do not execute claim changes in this subagent.
+           | 6) Completion: Offer next steps (start a claim via intake if a vehicle is involved; GOODWILL when applicable; AGENT for complex policy interpretation).
+           | Guardrails: Do not fabricate data; prefer org data and actions; escalate when out of scope.
+       actions:
+           go_to_WarrantyIntake: @utils.transition to @subagent.WarrantyIntake
+           go_to_Escalation: @utils.transition to @subagent.Escalation
 
-         If the question cannot be answered from the above, advise the dealer to reply AGENT.
-
-      actions:
-         go_to_intake: @utils.transition to @topic.warranty_intake
-         go_to_escalation: @utils.transition to @topic.escalation
-
-topic goodwill_review:
+subagent GoodwillReview:
    label: "Goodwill Review"
-   description: "Handles requests for goodwill policy exceptions when standard warranty coverage is denied or borderline."
-   actions:
-      Submit_Goodwill_Review:
-         target: "apex://SubmitGoodwillReview"
-         description: "Flags a claim for goodwill policy exception. Pass claimId if a claim exists; otherwise pass vin and dealerId and Apex creates the goodwill claim automatically."
-         inputs:
-            claimId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Existing claim ID (pass if claim already exists)"
-            vin: string
-               description: "VIN used if no claimId to create new goodwill claim"
-            dealerId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Dealer Account ID"
-            partCategory: string
-               description: "Part category involved"
-            goodwillReason: string
-               description: "Justification for the goodwill exception"
-               is_required: True
-         outputs:
-            status: string
-               description: "Operation result"
-               is_displayable: True
-            claimId: object
-               complex_data_type_name: "lightning__recordIdType"
-               description: "Goodwill claim Salesforce ID"
-            claimNumber: string
-               description: "Goodwill claim number"
-               is_displayable: True
-            message: string
-               description: "Confirmation detail"
-               is_displayable: True
+   description: "Handles requests for goodwill policy exceptions when standard warranty coverage is denied or borderline. Activated when dealer replies GOODWILL or requests a policy exception."
    reasoning:
-      instructions: |
-         The dealer is requesting a goodwill policy exception.
-         Acknowledge that while standard coverage may be denied, Electra Cars values long-term dealership partnerships.
+       instructions: ->
+           | Objective: Capture justification and submit a goodwill exception request for manager review WITH the full repair context the manager needs to decide.
+           | 1) Identify goal and inputs: You need goodwill justification text PLUS the repair context (fault_date, requested_amount, repair_order_number, symptom, mileage). If the dealer just came from WarrantyIntake those variables should already be populated — don't re-ask for them. If they came directly to GoodwillReview without going through intake, ask only for the missing fields.
+           | 2) Ask for justification with one concise prompt that gives examples: "Briefly tell me why this should qualify (e.g., loyal long-term customer, safety-critical issue, just outside warranty by N miles/months)." Stop at 1-2 follow-up prompts maximum if the dealer is vague.
+           | 3) Before invoking the action: present a one-message summary that the manager will see — claim's part, symptom, mileage, repair amount, why standard coverage didn't apply (warranty expired by N months, or mileage cap exceeded by N miles), and the dealer's justification. Ask "Reply YES to submit for manager review, or change anything before I send."
+           | 4) On YES, invoke SubmitGoodwillReview with claim_id (if available) OR vin + dealer_id + part_category. Pass the dealer's justification as goodwillReason. Reflect back the claim number or message exactly as returned.
+           | 5) Risky/irreversible: Submitting a goodwill request alters claim workflow. The YES gate above is the explicit confirmation — don't ask twice.
+           | 6) Completion: Confirm submission with claim number + 48-72h review SLA. Offer next steps (reply STATUS to track, AGENT for a specialist).
+           | Guardrails: Do not fabricate data; prefer org data and actions; escalate when out of scope.
+       actions:
+           SubmitGoodwillReview: @actions.SubmitGoodwillReview
+               with claimId = @variables.claim_id
+               with vin = @variables.vin
+               with dealerId = @variables.dealer_id
+               with partCategory = @variables.part_category
+               with goodwillReason = ...
+               set @variables.claim_number = @outputs.claimNumber
+           go_to_Escalation: @utils.transition to @subagent.Escalation
 
-         STEP 1 — Collect reason.
-         If srt_justification is empty:
-         - Ask: "To submit a goodwill request, please briefly describe the reason (e.g., loyal customer, safety-critical issue, odometer just outside coverage range)."
-         - Store the dealer's response in srt_justification.
+   actions:
+      SubmitGoodwillReview:
+          description: "Flags a warranty claim for a goodwill policy exception review. Call after collecting the dealer's justification reason."
+          label: "Submit Goodwill Review"
+          require_user_confirmation: True
+          include_in_progress_indicator: True
+          progress_indicator_message: "Submitting goodwill request..."
+          target: "apex://SubmitGoodwillReview"
+          inputs:
+              "claimId": object
+                  description: "Existing Claim ID if a claim already exists from a previous intake."
+                  label: "Claim ID"
+                  is_required: False
+                  is_user_input: False
+                  complex_data_type_name: "lightning__recordIdType"
+              "vin": string
+                  description: "Vehicle VIN, used when no Claim ID exists to create a new goodwill claim."
+                  label: "VIN"
+                  is_required: False
+                  is_user_input: False
+              "dealerId": object
+                  description: "Salesforce Dealer Account ID."
+                  label: "Dealer ID"
+                  is_required: False
+                  is_user_input: False
+                  complex_data_type_name: "lightning__recordIdType"
+              "partCategory": string
+                  description: "Part category involved in the goodwill request."
+                  label: "Part Category"
+                  is_required: False
+                  is_user_input: False
+              "goodwillReason": string
+                  description: "Dealer's justification for the goodwill policy exception."
+                  label: "Goodwill Reason"
+                  is_required: True
+                  is_user_input: True
+          outputs:
+              "status": string
+                  description: "Operation result: Success or Error."
+                  label: "Status"
+                  is_displayable: True
+                  filter_from_agent: False
+              "claimNumber": string
+                  description: "Claim number of the submitted goodwill request."
+                  label: "Claim Number"
+                  is_displayable: True
+                  filter_from_agent: False
+              "message": string
+                  description: "Confirmation detail or error message."
+                  label: "Message"
+                  is_displayable: True
+                  filter_from_agent: False
 
-         STEP 2 — Submit goodwill review.
-         When srt_justification is set:
-         - If claim_id is set: call Submit_Goodwill_Review with claimId = claim_id and goodwillReason = srt_justification.
-         - If claim_id is empty: call Submit_Goodwill_Review with vin, dealerId = dealer_id, partCategory = part_category, and goodwillReason = srt_justification.
-         - Store returned claimNumber to claim_number if provided.
-         - Confirm: "Goodwill exception request submitted (Claim {claim_number}). Our warranty team will review within 48-72 business hours and notify you via WhatsApp."
-
-      actions:
-         go_to_intake: @utils.transition to @topic.warranty_intake
-         go_to_escalation: @utils.transition to @topic.escalation
-
-topic approver_follow_up:
+subagent ApproverFollowUp:
    label: "Approver Follow-Up"
-   description: "Handles dealer replies to a Needs More Info claim. Collects clarification response and routes it back to the approver queue."
+   description: "Handles dealer replies to a 'Needs More Info' claim where the OEM approver has requested additional information or clarification."
+   reasoning:
+       instructions: ->
+           | Objective: Capture the dealer's clarification and submit it back to the OEM approver. Updating the Claim record is the only mechanism by which the Slack approver agent receives the dealer's response — if you skip the action, the approver will never see the answer.
+           | 1) Identify goal and inputs: Need claim_number and the dealer's full response text. Use {!@actions.SubmitClarificationResponse}.
+           | 2) If claim number or response text is missing, ask up to 2 concise questions to gather them; otherwise proceed.
+           | 3) MANDATORY: You MUST invoke SubmitClarificationResponse with claim_number and the dealer's response BEFORE replying to the dealer. Do NOT compose a confirmation message until the action has returned. Do NOT skip this action. The action's underlying Apex updates the Claim record (sets DealerResponseSummary__c, Status='Pending Approver Review', RequiresFollowUp__c=false), which is what re-fires the Slack notification flow back to the OEM approver. There is no other mechanism that delivers the dealer's response to Slack.
+           | 4) Read the action's actual outputs: submitted (boolean), newStatus (string), message (string). DO NOT fabricate success — base your reply strictly on these returned values.
+           | 5) On submitted=true: reply with the MANDATORY confirmation format including all four elements — (a) confirmation the response was sent, (b) the new status from @outputs.newStatus (will be "Pending Approver Review"), (c) the claim number from @outputs.claimNumberOut, (d) SLA "24 business hours". Example: "✅ Got it — your response has been sent. Claim *<claimNumberOut>* is now in **<newStatus>**. SLA: 24 business hours. The OEM approver will be re-notified shortly." On submitted=false: reply with the action's message verbatim and offer RETRY or AGENT — DO NOT claim success.
+           | 6) Risky/irreversible: None; this adds information but does not change claim decisions.
+           | 7) Completion: After a successful submit, set @variables.claim_status to @outputs.newStatus so subsequent status checks reflect the new state. Offer AGENT for further assistance.
+           | Guardrails: Do not fabricate data; only confirm success when @outputs.submitted is true; prefer org data and actions; escalate when out of scope.
+       actions:
+           SubmitClarificationResponse: @actions.SubmitClarificationResponse
+               with claimNumber = @variables.claim_number
+               with dealerResponse = ...
+               set @variables.claim_status = @outputs.newStatus
+           go_to_Escalation: @utils.transition to @subagent.Escalation
+
    actions:
-      Submit_Clarification_Response:
-         target: "apex://SubmitDealerClarificationResponse"
-         description: "Records the dealer written response to an OEM clarification request and moves the claim back to Pending Approver Review."
-         inputs:
-            claimNumber: string
-               description: "Claim number the dealer is responding to (e.g., CLM-00042)"
-               is_required: True
-            dealerResponse: string
-               description: "The dealer's written answer to the approver's clarification question"
-               is_required: True
-         outputs:
-            submitted: boolean
-               description: "True if the response was recorded and claim moved back to Pending Approver Review"
-               is_displayable: True
-            message: string
-               description: "Response submitted successfully, or Invalid claim number"
-               is_displayable: True
-   reasoning:
-      instructions: |
-         You are following up on behalf of the Electra Cars claim approver who has requested additional information.
+      SubmitClarificationResponse:
+          description: "Records the dealer's written response to an OEM clarification request and moves the claim back to Pending Approver Review."
+          label: "Submit Clarification Response"
+          require_user_confirmation: False
+          include_in_progress_indicator: True
+          progress_indicator_message: "Sending your response to the OEM approver..."
+          target: "apex://SubmitDealerClarificationResponse"
+          inputs:
+              "claimNumber": string
+                  description: "Claim number the dealer is responding to (e.g., WC-00042)."
+                  label: "Claim Number"
+                  is_required: True
+                  is_user_input: False
+              "dealerResponse": string
+                  description: "The dealer's full written answer to the approver's clarification question."
+                  label: "Dealer Response"
+                  is_required: True
+                  is_user_input: True
+          outputs:
+              "submitted": boolean
+                  description: "True if the response was successfully recorded and the claim moved back to Pending Approver Review."
+                  label: "Submitted"
+                  is_displayable: True
+                  filter_from_agent: False
+              "message": string
+                  description: "Confirmation or error message."
+                  label: "Message"
+                  is_displayable: True
+                  filter_from_agent: False
+              "newStatus": string
+                  description: "Claim status after the update. Pending Approver Review on success."
+                  label: "New Status"
+                  is_displayable: True
+                  filter_from_agent: False
+              "claimNumberOut": string
+                  description: "Echoed claim number for the agent to display in the confirmation message."
+                  label: "Claim Number"
+                  is_displayable: True
+                  filter_from_agent: False
 
-         STEP 1 — Identify the claim.
-         If claim_number is empty: ask "Which claim number are you responding to? (e.g., CLM-00042)"
-
-         STEP 2 — Collect the dealer response.
-         State the approver's clarification question and ask the dealer to provide their answer.
-         Store their answer in srt_justification.
-
-         STEP 3 — Submit the response.
-         When claim_number and srt_justification are both set:
-         - Call Submit_Clarification_Response with claimNumber = claim_number and dealerResponse = srt_justification.
-         - Confirm: "Your response has been sent to the OEM approver. Claim {claim_number} is back in the review queue. You will be notified of the decision within 24 business hours."
-
-      actions:
-         go_to_escalation: @utils.transition to @topic.escalation
-
-topic escalation:
+subagent Escalation:
    label: "Escalation"
-   description: "Escalates to a human OEM Service Adjuster. Triggered when dealer says AGENT, requests a human, or expresses significant frustration."
+   description: "Escalates the conversation to a human OEM Service Adjuster. Activated when dealer says AGENT, requests a human, or expresses significant frustration."
    reasoning:
-      instructions: |
-         Acknowledge the request professionally in one sentence.
-         Assure the dealer that all session context (VIN, symptom, coverage results) will be passed to the adjuster so they will not need to repeat themselves.
-         Then trigger escalation to a human agent.
+       instructions: ->
+           | Objective: Transfer the conversation to a human adjuster with relevant context.
+           | 1) Identify goal and inputs: Confirm the user wants a human handoff.
+           | 2) If unclear, ask one brief confirmation question; otherwise proceed.
+           | 3) Select and invoke escalation using the action below.
+           | 4) Verify the handoff has been initiated; acknowledge transfer succinctly.
+           | 5) Risky/irreversible: None; this is a handoff.
+           | 6) Completion: Confirm that session context (VIN, symptoms, coverage, claim details if any) will accompany the transfer.
+           | Guardrails: Do not fabricate data; prefer org data and actions; escalate when out of scope.
+       actions:
+           escalate_to_human: @utils.escalate
+               description: "Call this tool if the dealer indicates that they wish to escalate to a human agent."
 
-      actions:
-         escalate_to_human: @utils.escalate
+subagent off_topic:
+   label: "Off Topic"
+   description: "Redirect conversation to warranty-related topics when the dealer's request is unrelated to vehicle warranty claims or Electra Cars services."
+   reasoning:
+       instructions: ->
+           | Objective: Politely redirect to warranty support and gather a minimal starting detail.
+           | 1) Identify goal and inputs: Determine if this is a greeting or unrelated question.
+           | 2) If unclear, ask up to 2 brief clarifiers; otherwise proceed.
+           | 3) Provide a short redirect message: for greetings, offer help and request the VIN; for unrelated topics, state scope and ask what vehicle or warranty question they have.
+           | 4) Verify user understanding; do not invent policy or technical data.
+           | 5) Risky/irreversible: None; this subagent only redirects.
+           | 6) Completion: Offer next steps (share VIN to start a claim, or AGENT for a specialist).
+           | Guardrails: Do not fabricate data; prefer org data and actions; escalate when out of scope.
+
+connection customer_web_client:
+    adaptive_response_allowed: True
+    outbound_route_name: "flow://Messages_Routed_to_Agents_and_Queuess"
+    outbound_route_type: "OmniChannelFlow"
+    escalation_message: "Redirecting you to another agent"

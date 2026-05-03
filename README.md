@@ -4,7 +4,7 @@
 
 ### AI-driven warranty prior-authorization for EV OEMs
 
-*Replacing the 1,000-claims-a-day email bottleneck with a Slack-native, WhatsApp-conversational, Data-Cloud-enriched approval system — built on Salesforce Automotive Cloud + Agentforce + Data Cloud.*
+*Replacing the 1,000-claims-a-day email bottleneck with a Slack-native, dealer-portal Web Chat (+ WhatsApp), Data-Cloud-enriched approval system — built on Salesforce Automotive Cloud + Agentforce + Data Cloud.*
 
 [![Salesforce](https://img.shields.io/badge/Salesforce-Automotive%20Cloud-00A1E0?logo=salesforce&logoColor=white)](https://www.salesforce.com/products/automotive-cloud/)
 [![Agentforce](https://img.shields.io/badge/Agentforce-Service%20%2B%20Employee-0070D2)](https://www.salesforce.com/agentforce/)
@@ -41,7 +41,7 @@ Electra Cars is an EV OEM with **300,000+ vehicles in service**. Their dealer ne
 
 | | Before | After |
 | :--- | :--- | :--- |
-| **Intake channel** | Email + PDF forms | WhatsApp / Web Chat (ARIA conversational agent) |
+| **Intake channel** | Email + PDF forms | Dealer-portal Web Chat + WhatsApp (ARIA conversational agent) |
 | **Triage** | 1 claim at a time, manual | Auto-classified at submission via Coverage Engine + Prompt Builder verdict |
 | **Approval** | Inbox triage | Slack-native, rich context card |
 | **Auto-decision rate** | 0% | ~40% of claims (auto-approve / auto-reject) |
@@ -51,7 +51,7 @@ Electra Cars is an EV OEM with **300,000+ vehicles in service**. Their dealer ne
 ## 🏗 Architecture
 
 ```
-DEALER ─WhatsApp─▶ ARIA ─▶ Claim record ─▶ Coverage Engine + AI Verdict (Prompt Builder)
+DEALER ─Web Chat─▶ ARIA ─▶ Claim record ─▶ Coverage Engine + AI Verdict (Prompt Builder)
                                                        │
                                                Auto-route layer
                                                ┌────────┼────────┐
@@ -78,7 +78,7 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 ## 🚀 Key Features
 
 ### Dealer-side intake (ARIA — Agentforce Service Agent)
-- 📱 Conversational WhatsApp + Web Chat
+- 💬 Conversational dealer-portal Web Chat (WhatsApp also supported via Digital Engagement)
 - 💬 Conversational, English-language
 - 🔍 Slot-filling for VIN, symptom, part, odometer, cost
 - 📷 Photo upload + Vision AI damage analysis
@@ -143,7 +143,7 @@ Full sequence and component diagrams in [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTUR
 force-app/main/default/
 ├── aiAuthoringBundles/              # Agentforce agents
 │   ├── Warranty_Approver_Agent_3/   # Slack-facing approver
-│   └── Warranty_Dealer_Intake_Agentt_4/ # ARIA — dealer WhatsApp
+│   └── Warranty_Dealer_Intake_Agentt_4/ # ARIA — dealer Web Chat
 ├── classes/                          # 30+ Apex classes
 │   ├── ApproveWarrantyClaim.cls               # Approval invocable
 │   ├── RejectWarrantyClaim.cls                # Rejection invocable
@@ -223,7 +223,7 @@ Expected: all assertions pass, all 3 templates show `OK LIVE`, Data Cloud chain 
 
 | # | Action | Expected outcome |
 |---|---|---|
-| 1 | Open ARIA in WhatsApp · "VIN ELXDEMOFRD0800000, battery dead" | ARIA collects symptom, odometer, cost; submits claim |
+| 1 | Open ARIA in the dealer-portal Web Chat · "VIN ELXDEMOFRD0800000, battery dead" | ARIA collects symptom, odometer, cost; submits claim |
 | 2 | Watch Slack `#all-electra-cars-approvers` | Rich card appears: AI verdict + precedent + telemetry + trust score |
 | 3 | Reply `@Electra Approver approve <claim#> battery defect under coverage` | One-shot approval, PDF link, dealer + customer notified |
 | 4 | Submit a "Not Covered" claim | Auto-rejected; dealer gets empathetic LLM-generated rejection |

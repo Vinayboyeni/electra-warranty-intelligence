@@ -42,7 +42,7 @@ This document is everything a new contributor needs to understand the project, m
 
 A complete AI-driven warranty claim system for Electra Cars (an EV OEM) that replaces their manual email-based prior-authorization process with:
 
-- **Two Agentforce agents** — ARIA (dealer-facing on WhatsApp) and Warranty Approver (OEM-side on Slack)
+- **Two Agentforce agents** — ARIA (dealer-facing on the dealer-portal Web Chat) and Warranty Approver (OEM-side on Slack)
 - **One structured Claim record** in Salesforce Automotive Cloud as the source of truth
 - **Auto-routing logic** that handles ~40% of claims with zero human touch
 - **Data Cloud telemetry enrichment** that surfaces vehicle fault codes on the approver's review card

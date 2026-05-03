@@ -59,7 +59,7 @@
         <inputParameters>
             <name>copilotLabel</name>
             <value>
-                <stringValue>ARIA WhatsApp Intake Agent</stringValue>
+                <stringValue>ARIA Web Chat Intake Agent</stringValue>
             </value>
         </inputParameters>
         <inputParameters>
