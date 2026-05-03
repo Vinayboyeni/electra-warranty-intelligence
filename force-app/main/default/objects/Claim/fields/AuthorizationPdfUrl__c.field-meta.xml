@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AuthorizationPdfUrl__c</fullName>
+    <description>Public URL of the warranty prior-authorization PDF generated at approval time. Populated by GenerateApprovalAuthorization after the ContentDistribution is created. Persists across approver/dealer interactions so the URL never has to be regenerated.</description>
+    <label>Authorization PDF URL</label>
+    <length>500</length>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>2</visibleLines>
+</CustomField>
