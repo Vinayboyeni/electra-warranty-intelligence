@@ -11,13 +11,18 @@ public without sharing class ApproveWarrantyClaim {
 
         @InvocableVariable(label='Approved Amount' description='Optional. Specific dollar amount the approver is authorizing — pass when partial-approving below the dealer-estimated cost. When null or equal to the estimate, full estimated amount is approved.')
         public Decimal approvedAmount;
+
+        @InvocableVariable(label='Approver Confirmed Above Threshold' description='Pass True when the adjuster has explicitly confirmed approval of a claim whose estimated cost exceeds $2,000. Required for above-threshold claims; ignored for claims under $2,000. Server-side gate that prevents accidental over-threshold approvals even if the agent reasoning skips the confirmation prompt.')
+        public Boolean approverConfirmedAboveThreshold;
     }
 
     public class Result {
         @InvocableVariable(label='Claim Id' description='Id of the processed claim.') public Id claimId;
-        @InvocableVariable(label='Status' description='Status of the approval operation (Success/Error).') public String status;
-        @InvocableVariable(label='Message' description='Detailed message regarding the operation.') public String message;
+        @InvocableVariable(label='Status' description='Status of the approval operation. "Success" = DML committed; "Skipped" = pre-condition not met (already decided OR above-threshold not confirmed); "Error" = unrecoverable failure.') public String status;
+        @InvocableVariable(label='Message' description='Detailed message regarding the operation. Surfaced verbatim by the approver agent when status != "Success".') public String message;
     }
+
+    private static final Decimal UNILATERAL_THRESHOLD = 2000;
 
     @InvocableMethod(label='Approve Warranty Claim' description='Mark a Warranty Claim as Approved. Requires the Claim Id and a decision rationale explaining the approval. Automatically updates the underlying record.')
     public static List<Result> approve(List<Input> inputs) {
@@ -38,6 +43,8 @@ public without sharing class ApproveWarrantyClaim {
         }
 
         Set<Id> alreadyDecided = new Set<Id>();
+        Set<Id> blockedByThreshold = new Set<Id>();
+        Map<Id, String> thresholdMessages = new Map<Id, String>();
         for (Claim claim : [
             SELECT Id, Status, DecisionRationale__c, EstimatedCost__c, ApprovedAmount
             FROM Claim
@@ -49,10 +56,29 @@ public without sharing class ApproveWarrantyClaim {
             }
 
             // Defense-in-depth: skip claims already decided. Prevents an
-            // approver from accidentally re-firing the PDF + WhatsApp +
+            // approver from accidentally re-firing the PDF + email +
             // trust-score recalc chain on a settled claim.
             if (claim.Status == 'Approved' || claim.Status == 'Rejected') {
                 alreadyDecided.add(claim.Id);
+                continue;
+            }
+
+            // Server-side $2,000 threshold gate. The agent reasoning is supposed
+            // to ask "confirm approval above $2,000?" and pass approverConfirmedAboveThreshold=True
+            // only after explicit yes. We enforce it here too because reasoning-text
+            // guards in the LLM are soft — a quick "approve WC-XXXX <rationale>"
+            // command can otherwise bypass the confirmation step. With this check,
+            // the action ALWAYS fires (so last_action_status is real, not null)
+            // and the agent's HARD GUARD reasoning has Success/Skipped to gate on.
+            if (claim.EstimatedCost__c != null
+                    && claim.EstimatedCost__c > UNILATERAL_THRESHOLD
+                    && request.approverConfirmedAboveThreshold != true) {
+                blockedByThreshold.add(claim.Id);
+                thresholdMessages.put(claim.Id,
+                    'Claim is $' + claim.EstimatedCost__c.setScale(2)
+                    + ', above the $' + UNILATERAL_THRESHOLD.setScale(0)
+                    + ' unilateral threshold. Adjuster confirmation required: '
+                    + 'reply "yes" to confirm, then re-issue the approval command.');
                 continue;
             }
 
@@ -123,6 +149,9 @@ public without sharing class ApproveWarrantyClaim {
                 if (alreadyDecided.contains(request.claimId)) {
                     result.status = 'Skipped';
                     result.message = 'Claim is already decided (Approved or Rejected). No action taken.';
+                } else if (blockedByThreshold.contains(request.claimId)) {
+                    result.status = 'Skipped';
+                    result.message = thresholdMessages.get(request.claimId);
                 } else {
                     result.status = 'Success';
                     result.message = 'Claim approved successfully. Dealer notified via email and the dealer portal.';

@@ -130,6 +130,9 @@ variables:
    goodwill_intent_confirmed: mutable boolean = False
       description: "Deterministic gate that allows tool_SubmitGoodwillReview to fire. ONLY set True when the adjuster explicitly says 'goodwill' or agrees to route a Not-Covered claim to Goodwill. Prevents Goodwill from being auto-selected when Approve is gated."
       visibility: "Internal"
+   confirmed_above_threshold: mutable boolean = False
+      description: "Set True ONLY after the adjuster has typed an affirmative reply ('yes', 'yep', 'confirm', 'go ahead') to the >$2,000 threshold prompt in STEP 4A. Required by the Apex ApproveWarrantyClaim action when the effective approval amount exceeds $2,000 — without this flag, the action returns an error and the claim is NOT updated. Reset to False on every new claim review."
+      visibility: "Internal"
    last_action_status: mutable string
       description: "Status returned by the most recent decision action (Approve/Reject/Clarify/Goodwill). 'Success' means the DML actually committed; 'Skipped' or 'Error' means it did not. Reasoning MUST check this before emitting any decision-confirmation message."
       visibility: "Internal"
@@ -227,7 +230,8 @@ subagent ClaimReview:
          |     Turn A2 (DECISIVE — all in one turn):
          |       1. Call {!@actions.set_variable_decision_rationale} with the rationale text.
          |       2. If a partial amount was detected, call {!@actions.set_variable_approved_amount} with that numeric value (no $, no commas). Skip this step if approving the full estimated cost.
-         |       3. Parse numeric value from estimated_cost (strip "$" and ","). Determine the EFFECTIVE amount = approved_amount if set, else estimated_cost. If the EFFECTIVE amount > 2000, ask once: "This claim will be approved at $X (above the $2,000 threshold). Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
+         |       3. Parse numeric value from estimated_cost (strip "$" and ","). Determine the EFFECTIVE amount = approved_amount if set, else estimated_cost. If the EFFECTIVE amount > 2000 AND @variables.confirmed_above_threshold is False, ask once: "This claim will be approved at $X (above the $2,000 threshold). Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
+         |       3a. When the adjuster's reply to the threshold prompt is "yes" / "yep" / "confirm" / "go ahead" (or any clear affirmation), FIRST call {!@actions.set_variable_confirmed_above_threshold} with True in this same turn. The Apex action enforces this flag for >$2,000 approvals; calling tool_ApproveWarrantyClaim without it returns an error and the claim is NOT updated. Skip this step for sub-$2,000 approvals.
          |       4. Call {!@actions.tool_ApproveWarrantyClaim}.
          |       5. HARD GUARD: Only emit the success line if @variables.last_action_status equals "Success". On Success, emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified." If a partial amount was set, append: " Approved at $X (capped from estimated $Y)." If @variables.last_action_status is anything else (None, "Skipped", "Error"), respond INSTEAD with: "⚠️ Approval did not complete: {!@variables.last_action_message}. The claim was NOT updated. Verify rationale, confirmation, and gate state, then try again." Never claim a claim was approved unless last_action_status == "Success".
          |     Never end this turn silent — step 5 ALWAYS emits a message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
@@ -285,6 +289,7 @@ subagent ClaimReview:
          set_variable_reset_for_new_claim: @utils.setVariables
             description: "Reset session state when the adjuster switches to a new claim number. Call this BEFORE tool_GetWarrantyClaimApprovalContext if the incoming claim_number differs from the currently loaded one, OR if the adjuster explicitly says 'new claim' / 'review another'. Clears stale approval confirmation flags."
             with goodwill_intent_confirmed = ...
+            with confirmed_above_threshold = ...
             with decision_rationale = ...
             with reason_code = ...
             with clarification_question = ...
@@ -305,6 +310,9 @@ subagent ClaimReview:
          set_variable_goodwill_intent_confirmed: @utils.setVariables
             description: "Set True ONLY when the adjuster explicitly says 'goodwill' or 'escalate to goodwill' OR explicitly agrees to route a Not-Covered claim as Goodwill. Never set True implicitly. Deterministic gate for tool_SubmitGoodwillReview — without this True, Goodwill cannot fire even if rationale is set."
             with goodwill_intent_confirmed = ...
+         set_variable_confirmed_above_threshold: @utils.setVariables
+            description: "Set confirmed_above_threshold = True when the adjuster replies 'yes', 'yep', 'confirm', or 'go ahead' to the >$2,000 approval prompt in STEP 4A. Call BEFORE tool_ApproveWarrantyClaim in the same turn. The Apex action enforces this flag for high-value claims as defense-in-depth — calling tool_ApproveWarrantyClaim without it on a >$2,000 claim returns an error and the claim is NOT updated. Do NOT call this for sub-$2,000 approvals (the threshold prompt is skipped on those)."
+            with confirmed_above_threshold = ...
          tool_GetWarrantyClaimApprovalContext: @actions.GetWarrantyClaimApprovalContext
             available when (@variables.claim_number is not None and @variables.claim_number != "") or (@variables.claim_id is not None and @variables.claim_id != "")
             with claimId = @variables.claim_id
@@ -336,6 +344,7 @@ subagent ClaimReview:
             with decisionRationale = @variables.decision_rationale
             with approverSlackRef = @variables.slack_reference
             with approvedAmount = @variables.approved_amount
+            with approverConfirmedAboveThreshold = @variables.confirmed_above_threshold
             set @variables.last_action_status = @outputs.status
             set @variables.last_action_message = @outputs.message
          tool_RejectWarrantyClaim: @actions.RejectWarrantyClaim
@@ -517,9 +526,9 @@ subagent ClaimReview:
                is_displayable: True
                filter_from_agent: False
             "slackMessageBody": string
-               description: "Formatted markdown block summarizing all claim details for Slack channels."
+               description: "Formatted markdown block summarizing all claim details for Slack channels. Rendered manually by reasoning at STEP 1d only — never auto-rendered after action calls."
                label: "Slack Message Body"
-               is_displayable: True
+               is_displayable: False
                filter_from_agent: False
       ApproveWarrantyClaim:
          description: "Marks the claim as Approved. Requires a Decision Rationale. Notifies dealer via WhatsApp."
@@ -550,14 +559,19 @@ subagent ClaimReview:
                label: "Approved Amount"
                is_required: False
                is_user_input: False
+            "approverConfirmedAboveThreshold": boolean
+               description: "Pass True ONLY after the adjuster has explicitly typed 'yes' / 'yep' / 'confirm' to the >$2,000 threshold prompt. Required for high-value approvals; ignored under $2,000. Without this on an over-threshold claim the action returns Skipped and the DML is bypassed."
+               label: "Approver Confirmed Above Threshold"
+               is_required: False
+               is_user_input: False
          outputs:
             "status": string
-               description: "Operation result: Success or Error."
+               description: "Operation result: Success / Skipped / Error."
                label: "Status"
                is_displayable: True
                filter_from_agent: False
             "message": string
-               description: "Confirmation detail or error message."
+               description: "Confirmation detail or error message — surfaced verbatim by HARD GUARD reasoning when status != 'Success'."
                label: "Message"
                is_displayable: True
                filter_from_agent: False
