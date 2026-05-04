@@ -102,12 +102,6 @@
         </filters>
         <object>Claim</object>
         <recordTriggerType>Update</recordTriggerType>
-        <scheduledPaths>
-            <connector>
-                <targetReference>Notify_Dealer</targetReference>
-            </connector>
-            <pathType>AsyncAfterCommit</pathType>
-        </scheduledPaths>
         <triggerType>RecordAfterSave</triggerType>
     </start>
     <status>Active</status>

@@ -130,6 +130,12 @@ variables:
    goodwill_intent_confirmed: mutable boolean = False
       description: "Deterministic gate that allows tool_SubmitGoodwillReview to fire. ONLY set True when the adjuster explicitly says 'goodwill' or agrees to route a Not-Covered claim to Goodwill. Prevents Goodwill from being auto-selected when Approve is gated."
       visibility: "Internal"
+   last_action_status: mutable string
+      description: "Status returned by the most recent decision action (Approve/Reject/Clarify/Goodwill). 'Success' means the DML actually committed; 'Skipped' or 'Error' means it did not. Reasoning MUST check this before emitting any decision-confirmation message."
+      visibility: "Internal"
+   last_action_message: mutable string
+      description: "Human-readable message returned by the most recent decision action. Surfaced verbatim when last_action_status is not 'Success'."
+      visibility: "Internal"
    context_loaded: mutable boolean = False
       description: "True once GetWarrantyClaimApprovalContext has been called. Gates all action calls that require loaded claim context."
       visibility: "Internal"
@@ -223,8 +229,8 @@ subagent ClaimReview:
          |       2. If a partial amount was detected, call {!@actions.set_variable_approved_amount} with that numeric value (no $, no commas). Skip this step if approving the full estimated cost.
          |       3. Parse numeric value from estimated_cost (strip "$" and ","). Determine the EFFECTIVE amount = approved_amount if set, else estimated_cost. If the EFFECTIVE amount > 2000, ask once: "This claim will be approved at $X (above the $2,000 threshold). Confirm approval? (yes/no)" and END this turn. Resume on the adjuster's next "yes".
          |       4. Call {!@actions.tool_ApproveWarrantyClaim}.
-         |       5. IMMEDIATELY emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified." If a partial amount was set, append: " Approved at $X (capped from estimated $Y)."
-         |     Never end this turn silent — step 5 ALWAYS emits the message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
+         |       5. HARD GUARD: Only emit the success line if @variables.last_action_status equals "Success". On Success, emit: "✅ *{!@variables.claim_number} APPROVED.* Dealer {!@variables.dealer_name} has been notified." If a partial amount was set, append: " Approved at $X (capped from estimated $Y)." If @variables.last_action_status is anything else (None, "Skipped", "Error"), respond INSTEAD with: "⚠️ Approval did not complete: {!@variables.last_action_message}. The claim was NOT updated. Verify rationale, confirmation, and gate state, then try again." Never claim a claim was approved unless last_action_status == "Success".
+         |     Never end this turn silent — step 5 ALWAYS emits a message after the tool returns. Do NOT call tool_SubmitGoodwillReview here under any circumstances.
          |
          | STEP 4B — REJECT (deterministic, turn-by-turn — follow strictly)
          | Initiated when adjuster says "reject", "deny", "decline" AND reason_code is empty.
@@ -235,8 +241,8 @@ subagent ClaimReview:
          | Turn 3 (DECISIVE — do ALL of these in this one turn, then emit confirmation): When adjuster replies with ANY text (this IS the rationale — NEVER re-interpret as reason code, even if the text matches a reason code name):
          |   1. Call {!@actions.set_variable_decision_rationale} with the full text as-is.
          |   2. Call {!@actions.tool_RejectWarrantyClaim}.
-         |   3. IMMEDIATELY emit: "❌ *{!@variables.claim_number} REJECTED.* Reason: {!@variables.reason_code}. Dealer notified via WhatsApp."
-         | Never end this turn silent — step 3 ALWAYS emits the message after the tool returns. Do NOT wait for another user message before emitting.
+         |   3. HARD GUARD: Only emit the rejection line if @variables.last_action_status equals "Success". On Success, emit: "❌ *{!@variables.claim_number} REJECTED.* Reason: {!@variables.reason_code}. Dealer notified via WhatsApp." If last_action_status is anything else, respond INSTEAD with: "⚠️ Rejection did not complete: {!@variables.last_action_message}. The claim was NOT updated."
+         | Never end this turn silent — step 3 ALWAYS emits a message after the tool returns. Do NOT wait for another user message before emitting.
          |
          | STEP 4C — CLARIFY (RFI) (decisive in one turn)
          | If adjuster says "clarify" or "ask dealer":
@@ -244,7 +250,7 @@ subagent ClaimReview:
          | Turn C2 (DECISIVE — do ALL of these in this one turn): When adjuster provides the question text:
          |   1. Call {!@actions.set_variable_clarification_question} with the question text.
          |   2. Call {!@actions.tool_RequestDealerClarification}.
-         |   3. IMMEDIATELY emit: "📩 *Clarification sent to {!@variables.dealer_name}* via WhatsApp. Claim status: Needs More Info."
+         |   3. HARD GUARD: Only emit the clarification line if @variables.last_action_status equals "Success". On Success, emit: "📩 *Clarification sent to {!@variables.dealer_name}* via WhatsApp. Claim status: Needs More Info." If last_action_status is anything else, respond INSTEAD with: "⚠️ Clarification did not send: {!@variables.last_action_message}."
          | Never end this turn silent.
          |
          | STEP 4D — GOODWILL (decisive in one turn — REQUIRES EXPLICIT INTENT)
@@ -255,7 +261,7 @@ subagent ClaimReview:
          | Turn D2 (DECISIVE — do ALL of these in this one turn): When adjuster provides the reason text:
          |   1. Call {!@actions.set_variable_decision_rationale} with the reason text.
          |   2. Call {!@actions.tool_SubmitGoodwillReview}.
-         |   3. IMMEDIATELY emit: "🤝 *{!@variables.claim_number} escalated to Goodwill review.* Manager responds within 48-72 business hours."
+         |   3. HARD GUARD: Only emit the goodwill line if @variables.last_action_status equals "Success". On Success, emit: "🤝 *{!@variables.claim_number} escalated to Goodwill review.* Manager responds within 48-72 business hours." If last_action_status is anything else, respond INSTEAD with: "⚠️ Goodwill escalation did not complete: {!@variables.last_action_message}."
          | Never end this turn silent.
          |
          | SHORTCUT COMMANDS (one-shot processing):
@@ -330,22 +336,30 @@ subagent ClaimReview:
             with decisionRationale = @variables.decision_rationale
             with approverSlackRef = @variables.slack_reference
             with approvedAmount = @variables.approved_amount
+            set @variables.last_action_status = @outputs.status
+            set @variables.last_action_message = @outputs.message
          tool_RejectWarrantyClaim: @actions.RejectWarrantyClaim
             available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.claim_status != "Approved" and @variables.claim_status != "Rejected" and @variables.reason_code is not None and @variables.decision_rationale is not None
             with claimId = @variables.claim_id
             with reasonCode = @variables.reason_code
             with decisionRationale = @variables.decision_rationale
             with approverSlackRef = @variables.slack_reference
+            set @variables.last_action_status = @outputs.status
+            set @variables.last_action_message = @outputs.message
          tool_RequestDealerClarification: @actions.RequestDealerClarification
             available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.clarification_question is not None
             with claimId = @variables.claim_id
             with clarificationRequest = @variables.clarification_question
             with approverSlackRef = @variables.slack_reference
             with requiresFollowUp = True
+            set @variables.last_action_status = @outputs.status
+            set @variables.last_action_message = @outputs.message
          tool_SubmitGoodwillReview: @actions.SubmitGoodwillReview
             available when @variables.context_loaded == True and @variables.claim_id is not None and @variables.decision_rationale is not None and @variables.goodwill_intent_confirmed == True
             with claimId = @variables.claim_id
             with goodwillReason = @variables.decision_rationale
+            set @variables.last_action_status = @outputs.status
+            set @variables.last_action_message = @outputs.message
          go_to_Escalation: @utils.transition to @subagent.Escalation
    actions:
       GetWarrantyClaimApprovalContext:
